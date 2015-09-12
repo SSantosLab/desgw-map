@@ -173,3 +173,18 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         counter += 1
     
 
+# Get the saved maps for each day and hour.
+def readMaps (data_dir, simNumber, slot) :
+    name = data_dir + str(simNumber) + "-{}".format(str(slot)) 
+
+    ra=hp.read_map(name+"-ra.hp");
+    dec=hp.read_map(name+"-dec.hp");
+    ha=hp.read_map(name+"-ha.hp");
+    map=hp.read_map(name+"-map.hp");
+    maglim=hp.read_map(name+"-maglim.hp");
+    prob=hp.read_map(name+"-prob.hp");
+    probMap=hp.read_map(name+"-probMap.hp");
+    hx=hp.read_map(name+"-hx.hp");
+    hy=hp.read_map(name+"-hy.hp");
+    return ra, dec, map, maglim, prob, probMap, hx,hy
+

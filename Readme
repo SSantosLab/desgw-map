@@ -95,7 +95,7 @@ Dec 5, 2014
 >>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
     probs, times, hoursAvailable=6)
 >>> best_slot = getHexObservations.now( n_slots, \
-         mapDirectory="jack/", simNumber=13681, mapZero=map_zero, robot=False)
+         mapDirectory="jack/", simNumber=13681, mapZero=map_zero)
 # ==== show what we learned
 >>> plt.clf();getHexObservations.observingPlot(figure,13681,5,"jack/",12)
 #  recall that "figure" is from "figure = plt.figure(1)"
@@ -114,7 +114,7 @@ Dec 5, 2014
 >>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
     probs, times, hoursAvailable=6)
 # ==== figure out what to observe during that night
->>> best_slot = getHexObservations.now(\
+>>> best_slot, slots, slotMjd  = getHexObservations.now( \
     n_slots, mapDirectory=outfolder, simNumber=trigger_id, mapZero=map_zero)
 
 # === assuming I have a main_injectors dir
@@ -128,7 +128,7 @@ Dec 5, 2014
 >>> probs,times = getHexObservations.prepare(skymap, mjd, trigger_id, outfolder,exposure_length=exposure_length, distance=distance)
 >>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
     probs, times, hoursAvailable=6)
->>> best_slot = getHexObservations.now(\
+>>> best_slot, slots, slotMjd  = getHexObservations.now( \
     n_slots, mapDirectory=outfolder, simNumber=trigger_id, mapZero=map_zero)
 
 

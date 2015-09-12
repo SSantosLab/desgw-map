@@ -44,7 +44,7 @@ def prepare(skymap, mjd, trigger_id, outfolder,
 
 
 # ==== figure out what to observe
-def now(n_slots, mapDirectory="jack/", simNumber=13681, robot=True, mapZero=0) :
+def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
 
     hoursObserving=observing(simNumber,n_slots,mapDirectory, mapZero=mapZero)
     ra,dec,prob,mjd,slotNumbers = observingStats(hoursObserving)
@@ -55,9 +55,9 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, robot=True, mapZero=0) :
     name = eventName(mapDirectory, str(simNumber)) + ".json"
     jsonMaker.writeJson(ra,dec, jsonFilename=name)
 
-    if robot:
-        makePlots(n_slots, slotNumbers, mjd, simNumber, mapDirectory) 
-    return maxProb_slot
+    return maxProb_slot, slotNumbers, mjd
+
+#   makeObservingPlots(n_slots, slotNumbers, mjd, simNumber, best_slot, mapDirectory) 
 
 def eventName(data_dir, event) :
     name=data_dir+str(event)
@@ -235,7 +235,7 @@ def observingRecord(slotsObserving, simNumber, data_dir) :
     np.savetxt(name, data, "%.6f %.5f %.6f %.4f %d")
     return ra,dec,prob,mjd,slots
 
-#     ra,dec,prob,mjd,slots readObservingRecord(simNumber, data_dir)
+#     ra,dec,prob,mjd,slots = readObservingRecord(simNumber, data_dir)
 def readObservingRecord(simNumber, data_dir) :
     name = eventName(data_dir, str(simNumber)) + "-ra-dec-prob-mjd-slot.txt"
     ra,dec,prob,mjd,slots = np.genfromtxt(name,unpack=True)
@@ -367,11 +367,13 @@ def eliminateFullObservingSlots(hexData, slotsObserving, observingSlots, maxHexe
 # plotting 
 # ==================================
 
-def makePlots(nslots, slotNumbers, mjd, simNumber, mapDirectory) :
+def makeObservingPlots(nslots, slotNumbers, mjd, simNumber, best_slot,
+        mapDirectory) :
     import matplotlib
     matplotlib.use("Agg"); # matplotlib.use("TkAgg") ??
     import matplotlib.pyplot as plt
     figure = plt.figure(1,figsize=(5.5*1.618,5.5))
+
 
     for i in range(0,nslots) :
         obsTime = ""
@@ -382,7 +384,8 @@ def makePlots(nslots, slotNumbers, mjd, simNumber, mapDirectory) :
             plt.clf();
             observingPlot(figure,simNumber,i,mapDirectory,nslots,
                 extraTitle=obsTime)
-            plt.savefig(mapDirectory+"observingPlot-{}.png".format(i))
+            name = str(simNumber)+"-observingPlot-{}.png".format(i)
+            plt.savefig(mapDirectory+name)
 
 # modify mcbryde to have alpha=center of plot
 #   "slot" is roughly hour during the night at which to make plot
