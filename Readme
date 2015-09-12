@@ -1,0 +1,138 @@
+Code to calculate the probability of seeing
+a EM counterpart to a LIGO event starting from
+the LIGO probability maps.
+
+At present, calculates the limiting magnitude
+of a 30 second i-band Blanco image, all sky.
+
+Try:
+./setup.sh
+>>> import matplotlib.pyplot as plt; plt.ion() ; figure = plt.figure(1)
+>>> import numpy as np; import os
+>>> import mags
+
+# get ligo map
+>>> import hp2np
+>>> ra,dec,ligo = hp2np.hp2np(os.environ['DESGW_DATA_DIR'] + "/bayestar.fits.gz")
+
+# compute limiting mag
+>>> mjd = 55435.60552; obs = mags.observed(ra,dec,ligo, mjd); omags = obs.limitMag("i")
+# since this turns out to be during the day, change the time.
+>>> obs.resetTime(mjd+(10./24.)); obs.limitMag("i")
+# perhaps make the exposures longer than 30 sec, say 3x60 seconds
+>>> obs.limitMag("i",exposure=180.)
+
+# plot as ra,dec map (all coordinates are stored as radians)
+>>> plt.clf(); plt.hexbin( obs.ra*360./2/np.pi, obs.dec*360./2/np.pi, obs.maglim, vmin=15); plt.colorbar()
+
+# plot in an equal area projection- x,y are projected into a mcbryde-thomas projection
+>>> plt.axes().set_aspect('equal')
+>>> plt.clf(); plt.hexbin( obs.x, obs.y, obs.maglim, vmin=15); plt.colorbar()
+
+# work with the source probabilty
+>>> import sourceProb
+>>> sm=sourceProb.map(obs, lumModel="guassianAM");  sm.calculateProb()
+>>> plt.clf();plt.hexbin(obs.x,obs.y,sm.probMap); plt.colorbar()
+>>> plt.clf();plt.hexbin(obs.x,obs.y,sm.probMap*ligo); plt.colorbar()
+
+#  show the ligo probability contours on the limiting magnitude map
+>>> plt.hexbin( obs.x, obs.y, obs.maglim, vmin=15); plt.colorbar()
+>>> sm.plotLigoContours(obs)
+#  show the ligo probability contours on the source detection probability map
+>>> plt.hexbin( obs.x, obs.y, sm.probMap); plt.colorbar()
+>>> sm.plotLigoContours(obs)
+#  show the ligo*source probability contours on the limiting magnitude map
+>>> plt.hexbin( obs.x, obs.y, obs.maglim, vmin=17); plt.colorbar()
+>>> sm.plotLigoContours(obs, type="ls")
+
+# do it better
+>>> from equalArea import mcplot
+>>> plt.clf(); mcplot.plot(obs.x,obs.y,obs.maglim,300,vmin=17); sm.plotLigoContours(obs,type="ls")
+>>> plt.savefig("thefig.pdf", bbox_inches="tight")
+
+# get the limiting distance map, assuming a fixed absolute magnitude
+>>> sm=sourceProb.map(obs, lumModel="distance");  sm.calculateProb()
+>>> plt.clf(); plt.hexbin( obs.x, obs.y, sm.prob); plt.colorbar()
+
+# lower the resolution of the maps for speed
+>>> ra,dec,ligo = hp2np.hp2np(os.environ['DESGW_DATA_DIR'] + "/bayestar.fits.gz")
+>>> ra2,dec2,ligo2 =hp2np.map2np(ligo,resolution=32)
+>>> obs = mags.observed(ra2,dec2,ligo2 mjd, degradeRes=True);
+>>> obs.resetTime(mjd+(10./24.));
+>>> obs.limitMag("i", exposure=180);
+>>> sm=sourceProb.map(obs, lumModel="delta");sm.calculateProb();
+
+# plot using hour angle instead of RA- area always in center
+>>> mcplot.plot(obs.hx,obs.hy,sm.probMap,cmap="gray"); 
+>>> sm.plotLigoContours(obs,type="ligo",hourangle=True);
+
+More to come.
+Jim Annis
+Dec 5, 2014
+
+=====================================================
+# Now let us industrialize this.
+
+# First for a simulation, sim 13681
+>>> import getHexObservations; import mapsAtTimeT; import allMaps; import modelRead
+#  === we have to get the simulation information
+>>> simNum = 13681
+>>> data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
+>>> sims, mjds, distances, ligoMap = allMaps.selectSingleSim(simNum, data_dir)
+#  === let's reset the time  of the burst to make it useable
+>>> mjds[0]=57295. - 0.5
+#  === now we are ready to do our standard work
+>>> ligo = hp.read_map(ligoMap)
+>>> ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
+>>> obs = mags.observed(ra,dec,ligo, mjds[0])
+>>> obs.limitMag("i",exposure=180.)
+# ==== get the neutron star explosion models
+>>> models = modelRead.getModels()
+# ==== calculate maps during a full night of observing
+>>> probs,times = mapsAtTimeT.oneDayOfTotalProbability(obs,mjds[0],distances[0],models)
+>>> mapsAtTimeT.probabilityMapSaver (obs, sims[0], mjds[0], distances[0], models, times, probs, "jack/")
+# ==== figure out what to observe during that night
+>>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
+    probs, times, hoursAvailable=6)
+>>> best_slot = getHexObservations.now( n_slots, \
+         mapDirectory="jack/", simNumber=13681, mapZero=map_zero, robot=False)
+# ==== show what we learned
+>>> plt.clf();getHexObservations.observingPlot(figure,13681,5,"jack/",12)
+#  recall that "figure" is from "figure = plt.figure(1)"
+
+
+# And let's try an example that works for Dylan Brout's MainInjector
+>>> import getHexObservations
+# === the recycler object knows about skymap, mjd, trigger_id, and outfolder
+# === it seems to have exposure_length as a config variable
+# === distance is a problem- the question is whether we want a horizon
+# === distance or the estimated distance from LIGO?
+>>> distance = 70. ;# Mpc, as an estimated horizon distance
+# ==== calculate maps during a full night of observing
+>>> probs,times = getHexObservations.prepare(skymap, mjd, trigger_id, \
+    outfolder, exposure_length=exposure_length, distance=distance)
+>>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
+    probs, times, hoursAvailable=6)
+# ==== figure out what to observe during that night
+>>> best_slot = getHexObservations.now(\
+    n_slots, mapDirectory=outfolder, simNumber=trigger_id, mapZero=map_zero)
+
+# === assuming I have a main_injectors dir
+# and have copied bayestar-13681.fits.gz to the trigger_id dir M183082
+>>> import getHexObservations
+>>> exposure_length=180.; distance = 70.
+>>> trigger_id="M183082"; mjd=57295. - 0.5; skymap="bayestar-13681.fits.gz"; 
+>>> outfolder="/data/des41.a/data/annis/maininjector/DES_GW_Website/Triggers/"
+>>> outfolder=outfolder+trigger_id+"/"
+>>> skymap = outfolder+skymap; 
+>>> probs,times = getHexObservations.prepare(skymap, mjd, trigger_id, outfolder,exposure_length=exposure_length, distance=distance)
+>>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
+    probs, times, hoursAvailable=6)
+>>> best_slot = getHexObservations.now(\
+    n_slots, mapDirectory=outfolder, simNumber=trigger_id, mapZero=map_zero)
+
+
+
+More to come.
+Jim Annis
+Sept 11, 2015
