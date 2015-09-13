@@ -94,11 +94,13 @@ def manyDaysOfTotalProbability (
 def oneDayOfTotalProbability (obs, mjd, distance, models) :
     totalProbs,times = manyDaysOfTotalProbability(
         obs, mjd, distance, models, startOfDays=0,endOfDays=1)
+    print "total summed probability (list1) and daysSinceBurst (list2)"
+    print totalProbs,"\n",times
     print "===== times with total prob > 10**-2"
     ix = totalProbs > 10**-2; 
     print "total summed probability (list1) and daysSinceBurst (list2)"
     print totalProbs[ix],"\n",times[ix]
-    return totalProbs[ix],times[ix]
+    return totalProbs,times
 
 
 # for each time in the times,
@@ -113,8 +115,9 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
     gw_data_dir          = os.environ["DESGW_DATA_DIR"]
     hexFile = gw_data_dir + "all-sky-hexCenters.txt"
 
-    counter = 0
+    counter = -1
     for time,prob  in zip(times, probabilities) :
+        counter += 1
         if prob <= 0 : continue
         #print "probabilityMapSaver: counter, time= ", counter, time
         if time < 0.06: time = 0.06 ;# if less than 1.5 hours, set to 1.5 hours
@@ -171,7 +174,6 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         data = np.array([raHexen, decHexen, hexVals, rank, (rank*0)+(mjd+time)])
         np.savetxt(name,data.T,"%.6f, %.5f, %.4e, %d, %.4f")
 
-        counter += 1
     
 
 # Get the saved maps for each day and hour.
