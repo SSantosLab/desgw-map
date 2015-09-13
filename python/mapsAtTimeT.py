@@ -94,11 +94,11 @@ def manyDaysOfTotalProbability (
 def oneDayOfTotalProbability (obs, mjd, distance, models) :
     totalProbs,times = manyDaysOfTotalProbability(
         obs, mjd, distance, models, startOfDays=0,endOfDays=1)
-    print "===== times with total prob < 10**-2"
+    print "===== times with total prob > 10**-2"
     ix = totalProbs > 10**-2; 
     print "total summed probability (list1) and daysSinceBurst (list2)"
     print totalProbs[ix],"\n",times[ix]
-    return totalProbs,times
+    return totalProbs[ix],times[ix]
 
 
 # for each time in the times,
@@ -167,6 +167,7 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         # raHexen, decHexen, hexVals except as a sorting key
         name = nameStem + "-hexVals.txt"
         if os.path.exists(name): os.remove(name)
+        #print "=================>>>>>>>> ======>>>>>>>>>",  counter, mjd+time
         data = np.array([raHexen, decHexen, hexVals, rank, (rank*0)+(mjd+time)])
         np.savetxt(name,data.T,"%.6f, %.5f, %.4e, %d, %.4f")
 

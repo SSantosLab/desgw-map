@@ -45,12 +45,21 @@ def prepare(skymap, mjd, trigger_id, outfolder,
 
 # ==== figure out what to observe
 def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
+    # if the number of slots is zero, nothing to observe or plot
+    if n_slots == 0: return 0,0,0
 
     hoursObserving=observing(simNumber,n_slots,mapDirectory, mapZero=mapZero)
     ra,dec,prob,mjd,slotNumbers = observingStats(hoursObserving)
-    ra,dec,prob,mjd,slotNumbers = observingRecord(
-        hoursObserving, simNumber, mapDirectory)
-    maxProb_slot = slotNumbers[np.argsort(prob)][0]
+    observingRecord(hoursObserving, simNumber, mapDirectory)
+
+    maxProb = -1; maxProb_slot = -1
+    for slot in np.unique(slotNumbers) :
+        ix = slotNumbers == slot
+        sumProb = prob[ix].sum()
+        #print slot, sumProb*100.
+        if sumProb > maxProb :
+            maxProb = sumProb
+            maxProb_slot = slot
     
     name = eventName(mapDirectory, str(simNumber)) + ".json"
     jsonMaker.writeJson(ra,dec, jsonFilename=name)
@@ -63,10 +72,16 @@ def eventName(data_dir, event) :
     name=data_dir+str(event)
     return name
 
-# ok, I designed observing for the case
+# if the 1% cut isn't in place in mapsAtTimeT.oneDayOfTotalProbability
+# then one expects circa 40-45 maps as there is about 2/hour
+#   with the 1% cut, then one expects far fewer. Perhaps zero.
 def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
+    # if the number of slots is zero, nothing to observe or plot
+    if np.size(times) == 0 : return 0,0
+    verbose = 0
     n_slots = findNSlots(hoursAvailable)
     n_maps = times.size
+    if verbose: print n_slots, n_maps
     if n_maps == n_slots : 
         mapZero = 0
     elif n_maps < n_slots : 
@@ -76,13 +91,19 @@ def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
         mapZero = findStartMap ( probs, times, n_slots )
     else :
         raise Exception ("no possible way to get here")
+    if verbose: print n_slots, n_maps
     return n_slots, mapZero
 
 def findNSlots(hoursAvailable, slotDuration=32.) :
-    nslots = int(round(round(hoursAvailable*60./32.)))   ;# 32 minutes/slot
+    verbose = 0
+    if verbose:
+        print hoursAvailable
+        print hoursAvailable*60./32., round(hoursAvailable*60./32.)
+        print int(round(hoursAvailable*60./32.))
+    nslots = int(round(hoursAvailable*60./32.))   ;# 32 minutes/slot
     return nslots
 
-
+# ok, I designed observing for the case
 #   where the number of slots in a night
 #   was equal to the number of maps made.
 # This is unrealist for two reasons:
@@ -135,23 +156,25 @@ def observing(sim, nslots, data_dir,
     hexData = dict()
     for i in observingSlots :
         map_i = i + mapZero
-        raHexen, decHexen, hexVal, rank, mjd = loadHexalatedProbabilities(
-            sim, map_i, data_dir)
+        raHexen, decHexen, hexVal, rank, mjd, mySlot = \
+                loadHexalatedProbabilities( sim, map_i, data_dir)
         print map_i, "map size= ",raHexen.size, 
         ix = np.nonzero(hexVal < 1e-6)
-        raHexen, decHexen, hexVal, mjd  = \
+        raHexen, decHexen, hexVal, mjd, mySlot  = \
             np.delete(raHexen, ix), \
             np.delete(decHexen, ix), \
             np.delete(hexVal, ix), \
-            np.delete(mjd, ix) 
+            np.delete(mjd, ix) , \
+            np.delete(mySlot, ix)
         print "; n hexes greater than 1e-6 probability= ",raHexen.size
-        hexData[i] = raHexen, decHexen, hexVal, mjd
+        hexData[i] = raHexen, decHexen, hexVal, mjd, mySlot
 
     # start the search for all max probabilities
     # we'll assume the list is less than 40,000 long, the n-sq-degrees/sky
     for n in range(0,40000) :
         # search for a single max probabilities
-        maxRa, maxDec, maxProb, maxMjd, maxSlot = findMaxProbOfAllHexes(hexData, observingSlots, n, verbose) 
+        maxRa, maxDec, maxProb, maxMjd, maxSlot = \
+            findMaxProbOfAllHexes(hexData, observingSlots, n, verbose) 
         maxData = maxRa,maxDec,maxProb,maxMjd,maxSlot
 
         # we've found the maximum probability on the lists, 
@@ -265,7 +288,8 @@ def loadHexalatedProbabilities(sim, slot, data_dir) :
     nameStem = eventName(data_dir, str(sim)) + "-{}".format(str(slot)) 
     name = nameStem + "-hexVals.txt"
     raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, delimiter=",")
-    return raHexen, decHexen, hexVal, rank, mjd
+    slots = np.ones(rank.size)*slot
+    return raHexen, decHexen, hexVal, rank, mjd, slot
 
 
 #
@@ -274,12 +298,13 @@ def loadHexalatedProbabilities(sim, slot, data_dir) :
 #
 def findMaxProbOfAllHexes(hexData, observingSlots, n="", verbose = 0) :
     maxProb = -1
+    maxSlot = -1
     for i in observingSlots :
         data = hexData[i]
-        hexRa  = data[0]
-        hexDec = data[1]
-        hexVal = data[2]
-        hexMjd = data[3]
+        hexRa     = data[0]
+        hexDec    = data[1]
+        hexVal    = data[2]
+        hexMjd    = data[3]
         if hexVal.size == 0: continue
         if verbose >= 2: 
             if i == 2: print n,"====",i, "hexSize =",hexRa.size
@@ -289,14 +314,14 @@ def findMaxProbOfAllHexes(hexData, observingSlots, n="", verbose = 0) :
         if newProb > maxProb :
             if verbose >= 1: print n,"==== new max", i, "       ",newProb , ">", maxProb
             ix = hexVal == newProb
-            maxRa  = hexRa[ix]
-            maxDec = hexDec[ix]
-            maxVal = hexVal[ix]
-            maxMjd = hexMjd[ix]
-            maxData = maxRa,maxDec,maxVal,maxMjd,i
-            maxProb = newProb
+            maxRa     = hexRa[ix]
+            maxDec    = hexDec[ix]
+            maxVal    = hexVal[ix]
+            maxMjd    = hexMjd[ix]
+            maxProb   = newProb
+            maxSlot   = i
     if maxProb == -1 : raise Exception("no max probability found")
-    return maxRa, maxDec, maxVal, maxMjd, i
+    return maxRa, maxDec, maxVal, maxMjd, maxSlot
 
 # we've found a hex,slot that can be observed so add it the the observing lists
 def addObsToSlot (slotsObserving, maxData, slot) :
@@ -374,14 +399,19 @@ def makeObservingPlots(nslots, slotNumbers, mjd, simNumber, best_slot,
     import matplotlib.pyplot as plt
     figure = plt.figure(1,figsize=(5.5*1.618,5.5))
 
+    # if the number of slots is zero, nothing to observe or plot
+    if nslots == 0 : return ""
 
-    for i in range(0,nslots) :
+
+    for i in np.unique(slotNumbers) :
+        i = np.int(i)
         obsTime = ""
         ix = slotNumbers == i
         if np.any(ix) : 
-            obsTime = mjd[ix[0]]
+            ix = np.nonzero(slotNumbers == i)
+            obsTime = mjd[ix[0]].mean()
             print "making observingPlot-{}.png".format(i)
-            plt.clf();
+            #plt.clf();
             observingPlot(figure,simNumber,i,mapDirectory,nslots,
                 extraTitle=obsTime)
             name = str(simNumber)+"-observingPlot-{}.png".format(i)
