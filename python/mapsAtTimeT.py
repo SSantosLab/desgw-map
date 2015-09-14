@@ -1,7 +1,6 @@
 import numpy as np
 import healpy as hp
 
-import mags
 import sourceProb
 import modelRead
 
@@ -121,6 +120,8 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         if prob <= 0 : continue
         #print "probabilityMapSaver: counter, time= ", counter, time
         if time < 0.06: time = 0.06 ;# if less than 1.5 hours, set to 1.5 hours
+        print "================== map save ================== ",
+        print "hours since Time Zero: {:.1f}".format(time*24.)
         obs,sm = probabilityMaps( obs, mjd, time, distance, models)
 
         raHexen, decHexen, hexVals, rank = hexalate.cutAndHexalate (

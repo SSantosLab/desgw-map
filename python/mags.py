@@ -50,7 +50,9 @@ class observed(object):
 
     Internally all coordinates, time and space, are in radians, except MJD.
     """
-    def __init__(self, ra, dec, values, mjd, alpha=0., degradeRes=True) :
+    def __init__(self, 
+            ra, dec, values, mjd, alpha=0., degradeRes=True, verbose=True) :
+        self.verbose      = verbose
         data_dir          = os.environ["DESGW_DATA_DIR"]
         ctio_lat          = -30.16527778
         ctio_lon          = -70.8125
@@ -192,32 +194,32 @@ class observed(object):
         self.maglimall = mglobal
 
     def dustTransmission(self, filter, ebv) :
-        print "\t ... dust"
+        if self.verbose: print "\t ... dust"
         dustTransmission = dustModel.dustTransmission(filter, ebv)
         return dustTransmission
 
     def atmosphereTransmission(self, zd, airmass, filter, moon_sep, refAirmass=1.3) :
-        print "\t ... atmosphere"
+        if self.verbose: print "\t ... atmosphere"
         atransmission = atmosphere.transmission(airmass, filter, refAirmass)
-        print "\t ... earth"
+        if self.verbose: print "\t ... earth"
         dtransmission = atmosphere.dirtTransmission(zd)
-        print "\t ... moon"
+        if self.verbose: print "\t ... moon"
         mtransmission = atmosphere.lunarDirtTransmission(moon_sep)
         transmission = atransmission*dtransmission*mtransmission
         return transmission
 
     def telescopeLimits (self, ha, dec) :
-        print "\t ... telescope limits"
+        if self.verbose: print "\t ... telescope limits"
         limits = telescope.blancoLimits(ha, dec)
         return limits 
 
     def seeing(self, airmass, wavelength=775., seeingAtZenith=1.0) :
-        print "\t ... seeing"
+        if self.verbose: print "\t ... seeing"
         seeing = seeingModel.seeingWithAirmassAndLambda(airmass, wavelength, seeingAtZenith)
         return seeing
 
     def skyBrightness(self, zd, moon_zd, moon_sep, moon_phase, filter) :
-        print "\t ... sky brightness"
+        if self.verbose: print "\t ... sky brightness"
         sky = skyModel.sky_brightness_at_time( filter, zd, moon_zd, moon_sep, moon_phase) 
         return sky
 
@@ -232,7 +234,7 @@ class observed(object):
     # "east longitude", where positive numbers increase as one moves east
     #   recall that lat, long is in radians
     def mjdToLST (self, mjd, eastLongitude) :
-        print "\t MJD to LST"
+        if self.verbose: print "\t MJD to LST"
         gmst        = slalib.sla_gmst(mjd)
         eqEquinoxes = slalib.sla_eqeqx(mjd)
         lst         = gmst + eqEquinoxes + eastLongitude
@@ -245,7 +247,7 @@ class observed(object):
     #   recall that lat, long is in radians
     # The best way to view this output is as hexbin(ra,dec,zd) or ha
     def equatorialToObservational (self, ra, dec, lst, latitude) :
-        print "\t LST to HA,zenith distance"
+        if self.verbose: print "\t LST to HA,zenith distance"
         ha = lst - ra
         zd = self.zenithDistance(ha, dec, latitude)
         ix = np.nonzero(ha > 180.*2*np.pi/360.)
@@ -269,7 +271,7 @@ class observed(object):
     # from Young 1994 "Air mass and refraction", Applied Optics 33:1108-1110
     # max error = 0.0037 airmasses at zd=90 degrees. (!)
     def airmassModel(self, zd) :
-        print "\t zenith distance to airmass"
+        if self.verbose: print "\t zenith distance to airmass"
         airmass = zd*0+45 # a hack to set the values of airmass under the horizon
         ix = np.nonzero(zd <= 89.9999*2*np.pi/360.)
         coszd = np.cos(zd)

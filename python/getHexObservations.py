@@ -38,7 +38,7 @@ def prepare(skymap, mjd, trigger_id, outfolder,
     # === prep the maps
     ligo = hp.read_map(skymap)
     ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
-    obs = mags.observed(ra,dec,ligo, mjd)
+    obs = mags.observed(ra,dec,ligo, mjd, verbose=False)
     obs.limitMag("i",exposure=exposure_length)
     # ==== get the neutron star explosion models
     models = modelRead.getModels()
@@ -77,52 +77,72 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
     # if the number of slots is zero, nothing to observe or plot
     if n_slots == 0: 
         return 0,0,0
-
+    # compute the observing schedule
     hoursObserving=observing(simNumber,n_slots,mapDirectory, mapZero=mapZero)
+    # print stats to screen
     ra,dec,prob,mjd,slotNumbers,islots = observingStats(hoursObserving)
+    # save results to the record
     observingRecord(hoursObserving, simNumber, mapDirectory)
+    # write jsons and get slot number  of maximum probability
+    maxProb_slot = turnObservingRecordIntoJSONs(
+        ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) 
 
-    maxProb = -1; maxProb_slot = -1
-    for slot in np.unique(slotNumbers) :
-        ix = slotNumbers == slot
-        sumProb = prob[ix].sum()
-        #print slot, sumProb*100.
-        if sumProb > maxProb :
-            maxProb = sumProb
-            maxProb_slot = slot
-    maxProb_slot = np.int(maxProb_slot)
-    
-    name = eventName(mapDirectory, str(simNumber)) + ".json"
-    jsonMaker.writeJson(ra,dec, jsonFilename=name)
-
-    return maxProb_slot, slotNumbers, mjd
+    return maxProb_slot
 
 #
 # there are possibilities. Show them.
 #
-def makeObservingPlots(nslots, slotNumbers, mjd, simNumber, best_slot,
-        mapDirectory) :
+def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
-    print "makeObservingPlots(",nslots, slotNumbers, mjd, simNumber, best_slot,mapDirectory
+    print "makeObservingPlots(",nslots, simNumber, best_slot,mapDirectory
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     import matplotlib
     matplotlib.use("Agg"); # matplotlib.use("TkAgg") ??
     import matplotlib.pyplot as plt
     figure = plt.figure(1,figsize=(5.5*1.618,5.5))
+    ax = figure.add_subplot(111)
 
     # if the number of slots is zero, nothing to observe or plot
     if nslots == 0 : return 0
 
-    counter = 0
+    # first, make the probability versus something plot
+    ra,dec,prob,slotMjd,slotNumbers = readObservingRecord(
+        simNumber, mapDirectory)
+    plotProb, plotSlot,plotN = np.array([]), np.array([]), np.array([])
+    for i in np.unique(slotNumbers) :
+        ix = slotNumbers == i
+        if prob[ix].sum() > 0 :
+            plotN = np.append(plotN, prob[ix].size)
+            plotSlot = np.append(plotSlot,i)
+            plotProb = np.append(plotProb,100.*prob[ix].sum())
+    print "making probabilityPlot.png"
+    plt.clf();
+    plt.plot(plotSlot,plotProb,c="blue")
+    plt.scatter(plotSlot,plotProb,c="red",s=50)
+    plt.text(0.80,1.02,"total probability = {:5.1f}%".format(prob.sum()*100.),
+        transform = ax.transAxes,   horizontalalignment='left',
+        verticalalignment='center',)
+    avghex = str( np.round(plotN.mean(),1) )
+    plt.text(0.80,0.92,"n hexes per slot: {}".format(avghex),
+        transform = ax.transAxes,   horizontalalignment='left',
+        verticalalignment='center',)
+    plt.ylim(0.0,plt.ylim()[1])
+    plt.xlabel("slot number")
+    plt.ylabel("probability per slot (%)")
+    plt.title("sum(prob*ligo)")
+    name = str(simNumber)+"-probabilityPlot.png"
+    plt.savefig(mapDirectory+name)
+        
+    # now make the hex observation plots
+    counter = 1   ;# already made one
     for i in np.unique(slotNumbers) :
         i = np.int(i)
         obsTime = ""
         ix = slotNumbers == i
         if np.any(ix) : 
             ix = np.nonzero(slotNumbers == i)
-            obsTime = mjd[ix[0]].mean()
+            obsTime = slotMjd[ix[0]].mean()
             print "making observingPlot-{}.png".format(i)
-            #plt.clf();
             observingPlot(figure,simNumber,i,mapDirectory,nslots,
                 extraTitle=obsTime)
             name = str(simNumber)+"-observingPlot-{}.png".format(i)
@@ -140,7 +160,7 @@ def nothingToObserveShowSomething(skymap, mjd, exposure_length) :
     import sourceProb
     ligo = hp.read_map(skymap)
     ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
-    obs = mags.observed(ra,dec,ligo,round(mjd,0))
+    obs = mags.observed(ra,dec,ligo,round(mjd,0), verbose=False)
     obs.limitMag("i",exposure=exposure_length)
     maglim = obs.maglim
     sm=sourceProb.map(obs, lumModel="known")
@@ -156,14 +176,14 @@ def readMaps(data_dir, simNumber, slot) :
     # get the maps for a reasonable slot
     name = eventName(data_dir, str(simNumber)) + "-"+str(slot)
     print "\t reading ",name+"-ra.hp  etc"
-    raMap     =hp.read_map(name+"-ra.hp");
-    decMap    =hp.read_map(name+"-dec.hp");
-    haMap     =hp.read_map(name+"-ha.hp");
-    hxMap     =hp.read_map(name+"-hx.hp");
-    hyMap     =hp.read_map(name+"-hy.hp");
-    ligoMap   =hp.read_map(name+"-map.hp");
-    maglimMap =hp.read_map(name+"-maglim.hp");
-    probMap   =hp.read_map(name+"-probMap.hp");
+    raMap     =hp.read_map(name+"-ra.hp", verbose=False);
+    decMap    =hp.read_map(name+"-dec.hp", verbose=False);
+    haMap     =hp.read_map(name+"-ha.hp", verbose=False);
+    hxMap     =hp.read_map(name+"-hx.hp", verbose=False);
+    hyMap     =hp.read_map(name+"-hy.hp", verbose=False);
+    ligoMap   =hp.read_map(name+"-map.hp", verbose=False);
+    maglimMap =hp.read_map(name+"-maglim.hp", verbose=False);
+    probMap   =hp.read_map(name+"-probMap.hp", verbose=False);
     raMap=raMap/(2*np.pi/360.)
     decMap=decMap/(2*np.pi/360.)
     return raMap, decMap, ligoMap, maglimMap, probMap, haMap, hxMap, hyMap
@@ -502,6 +522,48 @@ def eliminateFullObservingSlots(
     observingSlots = np.delete(observingSlots, full)
     return observingSlots
 
+
+def turnObservingRecordIntoJSONs(
+        ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) :
+    # write big json file
+    name = jsonName(simNumber, mapDirectory)
+    jsonMaker.writeJson(ra,dec, jsonFilename=name)
+
+    # write slot json files
+    for slot in np.unique(slotNumbers) :
+        ix = slotNumbers == slot
+        slotMJD = mjd[ix][0]  ;# just get first mjd in this slot
+        name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
+        jsonMaker.writeJson(ra[ix],dec[ix], jsonFilename=name)
+        
+    # find slot with the maximum probability
+    maxProb = -1; maxProb_slot = -1
+    for slot in np.unique(slotNumbers) :
+        ix = slotNumbers == slot
+        sumProb = prob[ix].sum()
+        if sumProb > maxProb :
+            maxProb = sumProb
+            maxProb_slot = slot
+    maxProb_slot = np.int(maxProb_slot)
+
+    return maxProb_slot
+
+def jsonName(simNumber, mapDirectory) :
+    name = eventName(mapDirectory, str(simNumber)) + ".json"
+    return name
+def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
+    from pyslalib import slalib
+    date = slalib.sla_djcl(mjd)
+    year = np.int(date[0])
+    month= np.int(date[1])
+    day = np.int(date[2])
+    hour = np.int(date[3]*24.)
+    minute = np.int( (date[3]*24.-hour)*60.  )
+    time = "UTC-{}-{}-{}-{}:{}:00".format(year,month,day,hour,minute)
+    slot = "-{}-".format(np.int(slot))
+    name = eventName(mapDirectory, str(simNumber)) + slot + time + ".json"
+    return name
+     
 # ==================================
 # plotting 
 # ==================================
