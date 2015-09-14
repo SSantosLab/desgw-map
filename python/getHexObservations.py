@@ -368,8 +368,8 @@ def loadHexalatedProbabilities(sim, slot, data_dir) :
     nameStem = eventName(data_dir, str(sim)) + "-{}".format(str(slot)) 
     name = nameStem + "-hexVals.txt"
     raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, delimiter=",")
-    slots = np.ones(rank.size)*slot
-    return raHexen, decHexen, hexVal, rank, mjd, slot
+    slots = np.ones(raHexen.size)*slot
+    return raHexen, decHexen, hexVal, rank, mjd, slots
 
 
 #
