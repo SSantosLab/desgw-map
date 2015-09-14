@@ -78,9 +78,6 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
     if n_slots == 0: 
         return 0,0,0
 
-    print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
-    print "observing(",simNumber,n_slots,mapDirectory, mapZero
-    print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     hoursObserving=observing(simNumber,n_slots,mapDirectory, mapZero=mapZero)
     ra,dec,prob,mjd,slotNumbers,islots = observingStats(hoursObserving)
     observingRecord(hoursObserving, simNumber, mapDirectory)
@@ -93,6 +90,7 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
         if sumProb > maxProb :
             maxProb = sumProb
             maxProb_slot = slot
+    maxProb_slot = np.int(maxProb_slot)
     
     name = eventName(mapDirectory, str(simNumber)) + ".json"
     jsonMaker.writeJson(ra,dec, jsonFilename=name)
@@ -104,6 +102,9 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
 #
 def makeObservingPlots(nslots, slotNumbers, mjd, simNumber, best_slot,
         mapDirectory) :
+    print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
+    print "makeObservingPlots(",nslots, slotNumbers, mjd, simNumber, best_slot,mapDirectory
+    print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     import matplotlib
     matplotlib.use("Agg"); # matplotlib.use("TkAgg") ??
     import matplotlib.pyplot as plt
@@ -112,7 +113,7 @@ def makeObservingPlots(nslots, slotNumbers, mjd, simNumber, best_slot,
     # if the number of slots is zero, nothing to observe or plot
     if nslots == 0 : return 0
 
-    count = 0
+    counter = 0
     for i in np.unique(slotNumbers) :
         i = np.int(i)
         obsTime = ""
@@ -146,6 +147,26 @@ def nothingToObserveShowSomething(skymap, mjd, exposure_length) :
     sm.calculateProb()
     probMap = sm.probMap
     return ra, dec, ligo, maglim, probMap
+#
+# no, no, no, we actually can see something: lets see the best plots
+#
+#   raMap, decMap, ligoMap, maglimMap, probMap, haMap, hxMap, hyMap = readMaps(
+def readMaps(data_dir, simNumber, slot) :
+    import healpy as hp
+    # get the maps for a reasonable slot
+    name = eventName(data_dir, str(simNumber)) + "-"+str(slot)
+    print "\t reading ",name+"-ra.hp  etc"
+    raMap     =hp.read_map(name+"-ra.hp");
+    decMap    =hp.read_map(name+"-dec.hp");
+    haMap     =hp.read_map(name+"-ha.hp");
+    hxMap     =hp.read_map(name+"-hx.hp");
+    hyMap     =hp.read_map(name+"-hy.hp");
+    ligoMap   =hp.read_map(name+"-map.hp");
+    maglimMap =hp.read_map(name+"-maglim.hp");
+    probMap   =hp.read_map(name+"-probMap.hp");
+    raMap=raMap/(2*np.pi/360.)
+    decMap=decMap/(2*np.pi/360.)
+    return raMap, decMap, ligoMap, maglimMap, probMap, haMap, hxMap, hyMap
 
 #========================================================================
 # 
@@ -349,7 +370,7 @@ def slotsObservingToNpArrays(slotsObserving) :
     prob = np.array([])
     mjd = np.array([])
     slotNum = np.array([])
-    islots = np.array([])
+    islot = np.array([])
     for i in range(0,nslots) :
         ra = np.append(ra, slotsObserving[i,"ra"])
         dec = np.append(dec, slotsObserving[i,"dec"])
@@ -495,20 +516,11 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     import jsonMaker
 
     # get the planned observations
-    ra,dec,prob,mjd,slotNumbers,islot = readObservingRecord(simNumber, data_dir)
+    ra,dec,prob,mjd,slotNumbers = readObservingRecord(simNumber, data_dir)
     
     # get the maps for a reasonable slot
-    name = eventName(data_dir, str(simNumber)) + "-"+str(slot)
-    print "\t reading ",name+"-ra.hp  etc"
-    raMap     =hp.read_map(name+"-ra.hp");
-    decMap    =hp.read_map(name+"-dec.hp");
-    #haMap     =hp.read_map(name+"-ha.hp");
-    ligoMap   =hp.read_map(name+"-map.hp");
-    maglimMap =hp.read_map(name+"-maglim.hp");
-    probMap  =hp.read_map(name+"-probMap.hp");
-    #total = ligoMap*probMap
-    raMap=raMap/(2*np.pi/360.)
-    decMap=decMap/(2*np.pi/360.)
+    raMap, decMap, ligoMap, maglimMap, probMap, haMap, hxMap, hyMap = \
+        readMaps(data_dir, simNumber, slot)
 
     ix = probMap > 0
     medianRA = np.median(raMap[ix])
