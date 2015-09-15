@@ -44,7 +44,6 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     models = modelRead.getModels()
     # ==== calculate maps during a full night of observing
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(obs,mjd,distance,models)
-    return obs, trigger_id, mjd, distance, models, times, probs,data_dir
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, mjd, \
         distance, models, times, probs,data_dir)
     return probs, times
