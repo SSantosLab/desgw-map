@@ -93,13 +93,13 @@ def manyDaysOfTotalProbability (
 def oneDayOfTotalProbability (obs, mjd, distance, models) :
     totalProbs,times = manyDaysOfTotalProbability(
         obs, mjd, distance, models, startOfDays=0,endOfDays=1)
-    print "total summed probability (list1) and daysSinceBurst (list2)"
+    print "total summed probability of detection (list1) and daysSinceBurst (list2)"
     print totalProbs,"\n",times
     print "===== times with total prob > 10**-2"
     ix = totalProbs > 10**-2; 
-    print "total summed probability (list1) and daysSinceBurst (list2)"
+    print "total summed probability of detection (list1) and daysSinceBurst (list2)"
     print totalProbs[ix],"\n",times[ix]
-    return totalProbs,times
+    return totalProbs[ix],times[ix]
 
 
 # for each time in the times,
@@ -120,7 +120,7 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         if prob <= 0 : continue
         #print "probabilityMapSaver: counter, time= ", counter, time
         if time < 0.06: time = 0.06 ;# if less than 1.5 hours, set to 1.5 hours
-        print "================== map save ================== ",
+        print "================== map save =====>>>>>>>>===== ",
         print "hours since Time Zero: {:.1f}".format(time*24.)
         obs,sm = probabilityMaps( obs, mjd, time, distance, models)
 
@@ -150,6 +150,12 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         name = nameStem + "-hy.hp"
         if os.path.exists(name): os.remove(name)
         hp.write_map(name, obs.hy)
+        name = nameStem + "-x.hp"
+        if os.path.exists(name): os.remove(name)
+        hp.write_map(name, obs.hx)
+        name = nameStem + "-y.hp"
+        if os.path.exists(name): os.remove(name)
+        hp.write_map(name, obs.hy)
         name = nameStem + "-map.hp"
         if os.path.exists(name): os.remove(name)
         hp.write_map(name, obs.map)
@@ -171,7 +177,6 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         # raHexen, decHexen, hexVals except as a sorting key
         name = nameStem + "-hexVals.txt"
         if os.path.exists(name): os.remove(name)
-        #print "=================>>>>>>>> ======>>>>>>>>>",  counter, mjd+time
         data = np.array([raHexen, decHexen, hexVals, rank, (rank*0)+(mjd+time)])
         np.savetxt(name,data.T,"%.6f, %.5f, %.4e, %d, %.4f")
 
@@ -190,5 +195,7 @@ def readMaps (data_dir, simNumber, slot) :
     probMap=hp.read_map(name+"-probMap.hp");
     hx=hp.read_map(name+"-hx.hp");
     hy=hp.read_map(name+"-hy.hp");
-    return ra, dec, map, maglim, prob, probMap, hx,hy
+    x=hp.read_map(name+"-x.hp");
+    y=hp.read_map(name+"-y.hp");
+    return ra, dec, map, maglim, prob, probMap, x,y, hx,hy
 

@@ -28,7 +28,7 @@ import jsonMaker
 #       distance is a problem- the question is whether we want a horizon
 #       distance or the estimated distance from LIGO?
 #       >>> distance = 75. ;# Mpc, as an estimated horizon distance
-def prepare(skymap, mjd, trigger_id, outfolder,
+def prepare(skymap, mjd, trigger_id, data_dir,
         distance=75, exposure_length=180.) :
     import mapsAtTimeT
     import mags
@@ -45,7 +45,7 @@ def prepare(skymap, mjd, trigger_id, outfolder,
     # ==== calculate maps during a full night of observing
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(obs,mjd,distance,models)
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, mjd, \
-        distance, models, times, probs, outfolder)
+        distance, models, times, probs,data_dir)
     return probs, times
 
 # if the 1% cut isn't in place in mapsAtTimeT.oneDayOfTotalProbability
@@ -54,7 +54,7 @@ def prepare(skymap, mjd, trigger_id, outfolder,
 def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
     # if the number of slots is zero, nothing to observe or plot
     if np.size(times) == 0 : return 0,0
-    if probs.sum() < 1e-6 : return 0,0
+    if probs.sum() < 1e-9 : return 0,0
     verbose = 0
     n_slots = findNSlots(hoursAvailable)
     n_maps = times.size
@@ -68,8 +68,9 @@ def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
         mapZero = findStartMap ( probs, times, n_slots )
     else :
         raise Exception ("no possible way to get here")
-    print "\t\t n_maps = {}, n_slots = {}, mapZero = {}, sum prob = {}".format(
-        n_maps, n_slots, mapZero, probs.sum())
+    print "======= >>>>>>>> ========== ",
+    print "n_maps = {}, n_slots = {}, mapZero = {}, prob_max = {:.6}".format(
+        n_maps, n_slots, mapZero, probs.max())
     return n_slots, mapZero
 
 # ==== figure out what to observe
@@ -94,13 +95,12 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
 #
 def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
-    print "makeObservingPlots(",nslots, simNumber, best_slot,mapDirectory
+    print "makeObservingPlots(",nslots, simNumber, best_slot,mapDirectory," )"
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     import matplotlib
     matplotlib.use("Agg"); # matplotlib.use("TkAgg") ??
     import matplotlib.pyplot as plt
-    figure = plt.figure(1,figsize=(5.5*1.618,5.5))
-    ax = figure.add_subplot(111)
+    figure = plt.figure(1,figsize=(8.5*1.618,8.5))
 
     # if the number of slots is zero, nothing to observe or plot
     if nslots == 0 : return 0
@@ -108,31 +108,9 @@ def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
     # first, make the probability versus something plot
     ra,dec,prob,slotMjd,slotNumbers = readObservingRecord(
         simNumber, mapDirectory)
-    plotProb, plotSlot,plotN = np.array([]), np.array([]), np.array([])
-    for i in np.unique(slotNumbers) :
-        ix = slotNumbers == i
-        if prob[ix].sum() > 0 :
-            plotN = np.append(plotN, prob[ix].size)
-            plotSlot = np.append(plotSlot,i)
-            plotProb = np.append(plotProb,100.*prob[ix].sum())
-    print "making probabilityPlot.png"
-    plt.clf();
-    plt.plot(plotSlot,plotProb,c="blue")
-    plt.scatter(plotSlot,plotProb,c="red",s=50)
-    plt.text(0.80,1.02,"total probability = {:5.1f}%".format(prob.sum()*100.),
-        transform = ax.transAxes,   horizontalalignment='left',
-        verticalalignment='center',)
-    avghex = str( np.round(plotN.mean(),1) )
-    plt.text(0.80,0.92,"n hexes per slot: {}".format(avghex),
-        transform = ax.transAxes,   horizontalalignment='left',
-        verticalalignment='center',)
-    plt.ylim(0.0,plt.ylim()[1])
-    plt.xlabel("slot number")
-    plt.ylabel("probability per slot (%)")
-    plt.title("sum(prob*ligo)")
-    name = str(simNumber)+"-probabilityPlot.png"
-    plt.savefig(mapDirectory+name)
-        
+
+    probabilityPlot(figure, prob, slotNumbers, simNumber, mapDirectory) 
+
     # now make the hex observation plots
     counter = 1   ;# already made one
     for i in np.unique(slotNumbers) :
@@ -148,6 +126,9 @@ def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
             name = str(simNumber)+"-observingPlot-{}.png".format(i)
             plt.savefig(mapDirectory+name)
             counter += 1
+
+    counter+= equalAreaPlot(figure,best_slot,simNumber,mapDirectory)
+
     # return the number of plots made
     return counter
 #
@@ -170,23 +151,28 @@ def nothingToObserveShowSomething(skymap, mjd, exposure_length) :
 #
 # no, no, no, we actually can see something: lets see the best plots
 #
-#   raMap, decMap, ligoMap, maglimMap, probMap, haMap, hxMap, hyMap = readMaps(
+#   raMap, decMap, ligoMap, maglimMap, probMap, haMap, xMap,yMap, hxMap,hyMap = readMaps(
+#   ra, dec, ligo, maglim, prob, ha, x,y hx,hy = readMaps(
 def readMaps(data_dir, simNumber, slot) :
     import healpy as hp
     # get the maps for a reasonable slot
     name = eventName(data_dir, str(simNumber)) + "-"+str(slot)
-    print "\t reading ",name+"-ra.hp  etc"
+    print "\t reading ",name+"-ra.hp  & etc"
     raMap     =hp.read_map(name+"-ra.hp", verbose=False);
     decMap    =hp.read_map(name+"-dec.hp", verbose=False);
     haMap     =hp.read_map(name+"-ha.hp", verbose=False);
+    xMap      =hp.read_map(name+"-x.hp", verbose=False);
+    yMap      =hp.read_map(name+"-y.hp", verbose=False);
     hxMap     =hp.read_map(name+"-hx.hp", verbose=False);
     hyMap     =hp.read_map(name+"-hy.hp", verbose=False);
     ligoMap   =hp.read_map(name+"-map.hp", verbose=False);
     maglimMap =hp.read_map(name+"-maglim.hp", verbose=False);
     probMap   =hp.read_map(name+"-probMap.hp", verbose=False);
+    haMap=haMap/(2*np.pi/360.)
     raMap=raMap/(2*np.pi/360.)
     decMap=decMap/(2*np.pi/360.)
-    return raMap, decMap, ligoMap, maglimMap, probMap, haMap, hxMap, hyMap
+    return raMap, decMap, ligoMap, maglimMap, probMap, \
+        haMap, xMap, yMap, hxMap, hyMap
 
 #========================================================================
 # 
@@ -267,9 +253,11 @@ def observing(sim, nslots, data_dir,
         raHexen, decHexen, hexVal, rank, mjd, slotNum = \
                 loadHexalatedProbabilities( sim, map_i, data_dir)
         islot = i*np.ones(raHexen.size)
-        print map_i, "map size= ",raHexen.size, 
+        print map_i, "map size= {};".format(raHexen.size), 
 
-        ix = np.nonzero(hexVal < 1e-12)
+        impossible = 1e-12
+        impossible = 1e-7
+        ix = np.nonzero(hexVal < impossible)
         raHexen, decHexen, hexVal, mjd, slotNum, islot  = \
             np.delete(raHexen, ix), \
             np.delete(decHexen, ix), \
@@ -277,8 +265,11 @@ def observing(sim, nslots, data_dir,
             np.delete(mjd, ix) , \
             np.delete(slotNum, ix), \
             np.delete(islot, ix)
-        print "; n hexes greater than 1e-12 probability= ",raHexen.size
+        print " n hexes >{} probability=".format(str(impossible)),
+        print "{:4d};".format(raHexen.size),
+        print "  sum prob= {:7.4f} %".format( 100*hexVal.sum())
         hexData[i] = raHexen, decHexen, hexVal, mjd, slotNum, islot
+        #print np.sort(hexVal), hexVal.sum(), 100.*hexVal.sum(),"%"
 
     # start the search for all max probabilities
     # we'll assume the list is less than 40,000 long, the n-sq-degrees/sky
@@ -361,14 +352,14 @@ def observingStats( slotsObserving, outfile="") :
         print "  sum prob= {:7.4f} %".format( 100*slotsObserving[i,"prob"].sum())
     ra,dec,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
 
-    print "tot prob= {:.1f}%".format(100.*prob.sum())
+    print "observable prob_tot = {:.1f}%".format(100.*prob.sum())
     return ra,dec,prob,mjd,slotNum,islot
 
 def observingRecord(slotsObserving, simNumber, data_dir) :
     name = eventName(data_dir, str(simNumber)) + "-ra-dec-prob-mjd-slot.txt"
     ra,dec,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
-    data = np.array([ra, dec, prob, mjd, slotNum, islot]).T
-    np.savetxt(name, data, "%.6f %.5f %.6f %.4f %d %d")
+    data = np.array([ra, dec, prob, mjd, slotNum]).T
+    np.savetxt(name, data, "%.6f %.5f %.6f %.4f %d")
     return ra,dec,prob,mjd,slotNum
 
 #     ra,dec,prob,mjd,slotNum,islot = readObservingRecord(simNumber, data_dir)
@@ -378,9 +369,9 @@ def readObservingRecord(simNumber, data_dir) :
     if not os.path.exists(name) :
         ra,dec,prob,mjd,slotNum = \
             np.array(0),np.array(0),np.array(0), \
-            np.array(0),np.array(0)
+            np.array(0)
     else :
-        ra,dec,prob,mjd,slotNum,islot = np.genfromtxt(name,unpack=True)
+        ra,dec,prob,mjd,slotNum = np.genfromtxt(name,unpack=True)
     return ra,dec,prob,mjd,slotNum
 
 def slotsObservingToNpArrays(slotsObserving) :
@@ -567,6 +558,70 @@ def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
 # ==================================
 # plotting 
 # ==================================
+def probabilityPlot(figure, prob, slotNumbers, simNumber, data_dir) :
+    import matplotlib.pyplot as plt
+    ax = figure.add_subplot(111)
+    plotProb, plotSlot,plotN = np.array([]), np.array([]), np.array([])
+    for i in np.unique(slotNumbers) :
+        ix = slotNumbers == i
+        if prob[ix].sum() > 0 :
+            plotN = np.append(plotN, prob[ix].size)
+            plotSlot = np.append(plotSlot,i)
+            plotProb = np.append(plotProb,100.*prob[ix].sum())
+    print "making probabilityPlot.png"
+    plt.clf();
+    plt.plot(plotSlot,plotProb,c="blue")
+    plt.scatter(plotSlot,plotProb,c="red",s=50)
+    plt.text(0.80,1.02,"total probability = {:5.1f}%".format(prob.sum()*100.),
+        transform = ax.transAxes,   horizontalalignment='left',
+        verticalalignment='center',)
+    avghex = str( np.round(plotN.mean(),1) )
+    plt.text(0.80,0.92,"n hexes per slot: {}".format(avghex),
+        transform = ax.transAxes,   horizontalalignment='left',
+        verticalalignment='center',)
+    plt.ylim(0.0,plt.ylim()[1])
+    plt.xlabel("slot number")
+    plt.ylabel("probability per slot (%)")
+    plt.title("sum(prob*ligo)")
+    name = str(simNumber)+"-probabilityPlot.png"
+    plt.savefig(data_dir+name)
+
+def equalAreaPlot(figure,slot,simNumber,data_dir) :
+    import matplotlib.pyplot as plt
+    from equalArea import mcplot; 
+    ra, dec, ligo, maglim, prob, ha, x,y, hx,hy = \
+        readMaps(data_dir, simNumber, slot)
+    # x,y are the mcbryde projection of ra, dec
+    # hx,hy are the mcbryde projection of ha, dec
+    ra, dec = x, y
+
+    plt.axes().set_aspect('equal')
+
+    name = data_dir+str(simNumber)+str(slot)+"-ligo-eq.png"
+    print "making ",name
+    plt.clf();mcplot.plot(ra,dec,ligo)
+    plt.xlabel("RA");plt.ylabel("Dec")
+    plt.savefig(name)
+
+    name = data_dir+str(simNumber)+str(slot)+"-maglim-eq.png"
+    print "making ",name
+    plt.clf();mcplot.plot(ra,dec,maglim,vmin=17);
+    plt.xlabel("RA");plt.ylabel("Dec")
+    plt.savefig(name)
+
+    name = data_dir+str(simNumber)+str(slot)+"-prob-eq.png"
+    print "making ",name
+    plt.clf();mcplot.plot(ra,dec,prob)
+    plt.xlabel("RA");plt.ylabel("Dec")
+    plt.savefig(name)
+
+    name = data_dir+str(simNumber)+str(slot)+"-probXligo-eq.png"
+    print "making ",name
+    plt.clf();mcplot.plot(ra,dec,prob*ligo)
+    plt.xlabel("RA");plt.ylabel("Dec")
+    plt.savefig(name)
+    # return the number of plots made
+    return 4 
 
 # modify mcbryde to have alpha=center of plot
 #   "slot" is roughly hour during the night at which to make plot
@@ -581,8 +636,8 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     ra,dec,prob,mjd,slotNumbers = readObservingRecord(simNumber, data_dir)
     
     # get the maps for a reasonable slot
-    raMap, decMap, ligoMap, maglimMap, probMap, haMap, hxMap, hyMap = \
-        readMaps(data_dir, simNumber, slot)
+    raMap, decMap, ligoMap, maglimMap, probMap, \
+        haMap, xMap, yMap, hxMap, hyMap = readMaps(data_dir, simNumber, slot)
 
     ix = probMap > 0
     medianRA = np.median(raMap[ix])
@@ -631,7 +686,9 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
 
     plotLigoContours(xMap[ix],yMap[ix], probMap[ix]*ligoMap[ix], whiteLine=True) 
 
+#    ix = slotNumbers == slot
     ax = figure.add_subplot(1,1,1)
+#    ax=plotDecamHexen(ax, ra[ix],dec[ix],alpha, color="r", lw=1) 
     ax=plotDecamHexen(ax, ra,dec,alpha, color="r", lw=1) 
     offsets = jsonMaker.tileOffsets()
     delRa = offsets[8][0]

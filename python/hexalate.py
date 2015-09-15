@@ -58,7 +58,7 @@ def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
     obsHourAngle = obs.ha*360./(2*np.pi)
     obsRa        = obs.ra*360./(2*np.pi)
     obsDec       = obs.dec*360./(2*np.pi)
-    ix = (abs(obsHourAngle) <= 6 ) & (obsDec < 45)
+    ix = (abs(obsHourAngle) <= 6*15. ) & (obsDec < 45)
 
     raHexen, decHexen = getHexCenters (allskyDesHexes)
     ix2 = decHexen < 45.
@@ -75,3 +75,4 @@ def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
 def getHexCenters (allskyDesHexes = "../data/all-sky-hexCenters.txt") :
     ra,dec = np.genfromtxt(allskyDesHexes, unpack=True)
     return ra,dec
+

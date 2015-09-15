@@ -107,22 +107,21 @@ Dec 5, 2014
 # === the recycler object knows about skymap, mjd, trigger_id, and outfolder
 # === it has exposure_length as a config variable and distance from the event
 >>> import numpy as np; import os; import getHexObservations
->>> out_dir = "/data/des41.a/data/annis/maininjector/test-triggers/"
->>> web_dir = "/data/des41.a/data/annis/maininjector/DES_GW_Website/Triggers/"
->>> skymap = "/data/des30.a/data/annis/des-gw/ligo/sims/bayestar-13681.fits.gz"
->>> trigger_id = "M183082" ; mjd = 57295. - 0.5; hours_available=6.
->>> exposure_length=180.; distance = 60. ;# Mpc, estimated horizon distance
->>> outputDir = out_dir+str(trigger_id)+"/maps/" 
+>>> out_dir = "jack/";  data_dir = out_dir
+>>> web_dir = "jack/web/"
+>>> skymap = "/data/des41.a/data/desgw/maininjector/test-triggers/M168556/M168556_bayestar.fits.gz"
+>>> trigger_id = "/M168556" ; trigger_mjd = 55472.8245; distance = 91.24
+>>> hours_available=6. exposure_length=180.; 
 # ==== calculate maps during a full night of observing
->>> probs,times = getHexObservations.prepare(skymap, mjd, trigger_id, \
-    outputDir, exposure_length=exposure_length, distance=distance)
+>>> probs,times = getHexObservations.prepare(skymap, trigger_mjd, trigger_id, \
+    data_dir, exposure_length=exposure_length, distance=distance)
 >>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
     probs, times, hoursAvailable=hours_available); 
 # ==== figure out what to observe during that night
 >>> best_slot  = getHexObservations.now( \
-    n_slots, mapDirectory=outputDir, simNumber=trigger_id, mapZero=map_zero)
+    n_slots, mapDirectory=data_dir, simNumber=trigger_id, mapZero=map_zero)
 >>> getHexObservations.makeObservingPlots( 
-            n_slots, trigger_id, best_slot, outputDir)
+            n_slots, trigger_id, best_slot, data_dir)
 
 
 More to come.

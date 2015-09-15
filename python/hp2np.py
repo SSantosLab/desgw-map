@@ -42,16 +42,15 @@ def hp2np (hp_map_file, nan=True, degrade=False, fluxConservation=False) :
 #
 # Give me, ra, dec, val.
 def map2np (hp_map, resolution=False, fluxConservation=False) :
-    print "\t hpmap2np"
     nside = hp.npix2nside(len(hp_map))
-    print "\t res= ", nside
+    print "\t map2np: \t res= ", nside
     if resolution :
         if fluxConservation :
             hp_map = hp.ud_grade(hp_map, resolution, power=-2)
         else :
             hp_map = hp.ud_grade(hp_map, resolution)
         nside = hp.npix2nside(len(hp_map))
-        print "\t changed resolution to ", nside
+        print "map2np \t changed resolution to ", nside
     ix = range(0,hp_map.size)
     # pix2and wants the indicies numbers of the pixel to get the coord of
     theta,phi = hp.pix2ang(nside,ix)

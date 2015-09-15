@@ -22,7 +22,8 @@ license="""
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-def plot(x, y, vals, gridsize=100, save=False, file="", vmin="", vmax="", cmap="gray_r") :
+# tru cmap = gray_r
+def plot(x, y, vals, gridsize=100, save=False, file="", vmin="", vmax="", cmap="jet") :
     if vmin > vals.max() : vmin = ""
     if vmax < vals.min() : vmax = ""
     if vmin == "" and vmax == "":
