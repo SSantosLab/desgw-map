@@ -111,7 +111,7 @@ Dec 5, 2014
 >>> web_dir = "jack/web/"
 >>> skymap = "/data/des41.a/data/desgw/maininjector/test-triggers/M168556/M168556_bayestar.fits.gz"
 >>> trigger_id = "/M168556" ; trigger_mjd = 55472.8245; distance = 91.24
->>> hours_available=6. exposure_length=180.; 
+>>> hours_available=6.; exposure_length=180.; 
 # ==== calculate maps during a full night of observing
 >>> probs,times = getHexObservations.prepare(skymap, trigger_mjd, trigger_id, \
     data_dir, exposure_length=exposure_length, distance=distance)

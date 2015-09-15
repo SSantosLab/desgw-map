@@ -58,15 +58,16 @@ def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
     obsHourAngle = obs.ha*360./(2*np.pi)
     obsRa        = obs.ra*360./(2*np.pi)
     obsDec       = obs.dec*360./(2*np.pi)
-    ix = (abs(obsHourAngle) <= 6*15. ) & (obsDec < 45)
+    # based on blanco horizen limits
+    ix = (abs(obsHourAngle) <= 83. ) & (obsDec < 43.)
 
     raHexen, decHexen = getHexCenters (allskyDesHexes)
-    ix2 = decHexen < 45.
+    ix2 = decHexen < 43.
 
     probabilities = obs.map*sm.probMap
 
     hexVals = np.zeros(raHexen.size)
-    hexVals[ix2] = decam2hp.hexalateMap(obsRa[ix],obsDec[ix], probabilities[ix], 
+    hexVals[ix2] = decam2hp.hexalateMap(obsRa[ix],obsDec[ix], probabilities[ix],
         raHexen[ix2], decHexen[ix2])
     rank=np.argsort(hexVals); 
     rank = rank[::-1];# sort from large to small by flipping natural argsort order
