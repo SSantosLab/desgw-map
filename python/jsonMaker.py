@@ -44,7 +44,7 @@ def writeJson(ra,dec, seqid="none", seqnum=0, seqtot=0,
     nexp = np.size(exposureList)
     for i in range(0,size) :
         for j in range(0,nexp) :
-            seqnum =+1
+            seqnum +=1
 #not clobbered
 #count, seqid, seqnum, seqtot,note,comment
             tiling = tilingList[j]
