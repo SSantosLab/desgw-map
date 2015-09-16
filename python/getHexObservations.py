@@ -631,6 +631,7 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     import matplotlib.pyplot as plt
     import healpy as hp
     import jsonMaker
+    import insideDesFootprint
 
     # get the planned observations
     ra,dec,prob,mjd,slotNumbers = readObservingRecord(simNumber, data_dir)
@@ -686,21 +687,24 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
 
     plotLigoContours(xMap[ix],yMap[ix], probMap[ix]*ligoMap[ix], whiteLine=True) 
 
-#    ix = slotNumbers == slot
     ax = figure.add_subplot(1,1,1)
+#    ix = slotNumbers == slot
 #    ax=plotDecamHexen(ax, ra[ix],dec[ix],alpha, color="r", lw=1) 
     ax=plotDecamHexen(ax, ra,dec,alpha, color="r", lw=1) 
-    offsets = jsonMaker.tileOffsets()
-    delRa = offsets[8][0]
-    delDec = offsets[8][1]
-    tdec = dec+delDec
-    tra = ra + delRa/np.cos(tdec*2*np.pi/360.)
-    #ax=plotDecamHexen(ax, tra,tdec,alpha, color="orange", lw=1) 
-    delRa = offsets[9][0]
-    delDec = offsets[9][1]
-    tdec = dec+delDec
-    tra = ra + delRa/np.cos(tdec*2*np.pi/360.)
-    #ax=plotDecamHexen(ax, tra,tdec,alpha, color="orange", lw=1) 
+    ix =np.invert( insideDesFootprint.insideFootprint(ra, dec))
+    ax=plotDecamHexen(ax, ra[ix],dec[ix],alpha, color="orange", lw=1) 
+
+#    offsets = jsonMaker.tileOffsets()
+#    delRa = offsets[8][0]
+#    delDec = offsets[8][1]
+#    tdec = dec+delDec
+#    tra = ra + delRa/np.cos(tdec*2*np.pi/360.)
+#    ax=plotDecamHexen(ax, tra,tdec,alpha, color="orange", lw=1) 
+#    delRa = offsets[9][0]
+#    delDec = offsets[9][1]
+#    tdec = dec+delDec
+#    tra = ra + delRa/np.cos(tdec*2*np.pi/360.)
+#    ax=plotDecamHexen(ax, tra,tdec,alpha, color="orange", lw=1) 
 
     title = "i-band limiting magnitude"
     if extraTitle != "" :
