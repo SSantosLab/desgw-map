@@ -520,16 +520,20 @@ def eliminateFullObservingSlots(
 
 def turnObservingRecordIntoJSONs(
         ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) :
+    seqtot =  ra.size
+    seqzero = 0
     # write big json file
     name = jsonName(simNumber, mapDirectory)
-    jsonMaker.writeJson(ra,dec, jsonFilename=name)
+    jsonMaker.writeJson(ra,dec, jsonFilename=name, simNumber, seqnum, seqtot))
 
     # write slot json files
     for slot in np.unique(slotNumbers) :
         ix = slotNumbers == slot
         slotMJD = mjd[ix][0]  ;# just get first mjd in this slot
         name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
-        jsonMaker.writeJson(ra[ix],dec[ix], jsonFilename=name)
+        jsonMaker.writeJson(ra[ix],dec[ix], jsonFilename=name,
+        simNumber, i, seqtot)
+        seqzero =+ ra[ix].size
         
     # find slot with the maximum probability
     maxProb = -1; maxProb_slot = -1
