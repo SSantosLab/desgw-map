@@ -588,36 +588,47 @@ def probabilityPlot(figure, prob, slotNumbers, simNumber, data_dir) :
 
 def equalAreaPlot(figure,slot,simNumber,data_dir) :
     import matplotlib.pyplot as plt
-    from equalArea import mcplot; 
+    from equalArea import mcplot
+    from equalArea import mcbryde
+    import insideDesFootprint
+
     ra, dec, ligo, maglim, prob, ha, x,y, hx,hy = \
         readMaps(data_dir, simNumber, slot)
     # x,y are the mcbryde projection of ra, dec
     # hx,hy are the mcbryde projection of ha, dec
     ra, dec = x, y
 
+    # des footprint
+    desra, desdec = insideDesFootprint.getFootprintRaDec()
+    desx, desy = mcbryde.mcbryde(desra, desdec)
+
     plt.axes().set_aspect('equal')
 
     name = data_dir+str(simNumber)+str(slot)+"-ligo-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,ligo)
+    plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
     name = data_dir+str(simNumber)+str(slot)+"-maglim-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,maglim,vmin=17);
+    plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
     name = data_dir+str(simNumber)+str(slot)+"-prob-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,prob)
+    plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
     name = data_dir+str(simNumber)+str(slot)+"-probXligo-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,prob*ligo)
+    plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
     # return the number of plots made
