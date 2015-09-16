@@ -90,9 +90,10 @@ def manyDaysOfTotalProbability (
     times = np.array(times)
     return totalProbs,times
 
-def oneDayOfTotalProbability (obs, mjd, distance, models) :
+def oneDayOfTotalProbability (obs, mjd, distance, models,deltaTime=0.0223) :
     totalProbs,times = manyDaysOfTotalProbability(
-        obs, mjd, distance, models, startOfDays=0,endOfDays=1)
+        obs, mjd, distance, models, startOfDays=0,endOfDays=1,
+        deltaTime=0.0223)
     print "total summed probability of detection (list1) and daysSinceBurst (list2)"
     print totalProbs,"\n",times
     print "===== times with total prob > 10**-2"
