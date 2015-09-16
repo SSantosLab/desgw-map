@@ -84,18 +84,18 @@ def writeJson(ra,dec,
     fd.write("]\n")
     fd.close()
 
+> # production offsets are in DES docdb 7269
 def tileOffsets() :
     offsets = dict()
 # blessed offsets 0
     offsets[0] = 0.000, 0.000
 # we'll use 8,9 (as if we were doing DES year 5)
-# blessed offsets 8
-    offsets[8] = 0.0484, -0.6725
-# blessed offsets 9
-    offsets[9] =  -0.9452, 0.3740
-# blessed offsets 10
-    offsets[10] = -1.138 -0.261
-# blessed offsets 16,17
-    offsets[16] = 0.185,  0.065
-    offsets[17] = -0.058,  -0.141
-    return offsets
+# production offsets 8
+    offsets[8] = 0.76668, 0.4227
+# production offsets 9
+    offsets[9] = -0.0479175, 0.388884
+# production offsets 10
+    offsets[10] = -0.5257, 0.7222
+# production offsets 16,17
+    offsets[16] = -1.1388, 0.0166
+    offsets[17] =  0.0484, -0.6725
