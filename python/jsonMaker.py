@@ -74,7 +74,7 @@ def writeJson(ra,dec, seqid="none", seqnum=0, seqtot=0,
             fd.write("  \"program\" : \"des gw\",\n")
             fd.write("  \"RA\" : {:.6f},\n".format(tra))
             fd.write("  \"dec\" : {:.5f},\n".format(tdec))
-            fd.write("  \"comment\" : \"{}\",\n".format(comment)) 
+            fd.write("  \"comment\" : \"{}\"\n".format(comment)) 
             # note lack of comma for end
             fd.write("}")
             if (i == size-1) and ( j == nexp-1) :
