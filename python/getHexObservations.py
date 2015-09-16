@@ -203,9 +203,9 @@ def findNSlots(hoursAvailable, slotDuration=32.) :
     verbose = 0
     if verbose:
         print hoursAvailable
-        print hoursAvailable*60./32., round(hoursAvailable*60./32.)
-        print int(round(hoursAvailable*60./32.))
-    nslots = int(round(hoursAvailable*60./32.))   ;# 32 minutes/slot
+        print hoursAvailable*60./slotDuration, round(hoursAvailable*60./slotDuration)
+        print int(round(hoursAvailable*60./slotDuration))
+    nslots = int(round(hoursAvailable*60./slotDuration))   ;# 32 minutes/slot
     return nslots
 
 # ok, I designed observing for the case
