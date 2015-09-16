@@ -524,7 +524,7 @@ def turnObservingRecordIntoJSONs(
     seqzero = 0
     # write big json file
     name = jsonName(simNumber, mapDirectory)
-    jsonMaker.writeJson(ra,dec, simNumber, seqnum, seqtot, jsonFilename=name)
+    jsonMaker.writeJson(ra,dec, simNumber, seqzero, seqtot, jsonFilename=name)
 
     # write slot json files
     for slot in np.unique(slotNumbers) :
@@ -532,7 +532,7 @@ def turnObservingRecordIntoJSONs(
         slotMJD = mjd[ix][0]  ;# just get first mjd in this slot
         name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
         jsonMaker.writeJson(ra[ix],dec[ix], 
-            simNumber, i, seqtot, jsonFilename=name)
+            simNumber, zeroi, seqtot, jsonFilename=name)
         seqzero =+ ra[ix].size
         
     # find slot with the maximum probability
