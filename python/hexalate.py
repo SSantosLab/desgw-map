@@ -55,6 +55,7 @@ def hexalateNHexes (obs, sm, nHexes, allskyDesHexes) :
 # be aware that while most of my ra,dec are in degrees,
 # those in obs and sm are in radians
 def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
+    verbose = False
     obsHourAngle = obs.ha*360./(2*np.pi)
     obsRa        = obs.ra*360./(2*np.pi)
     obsDec       = obs.dec*360./(2*np.pi)
@@ -65,10 +66,14 @@ def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
     ix2 = decHexen < 43.
 
     probabilities = obs.map*sm.probMap
+    if verbose  :
+        print "\t cutAndHexalate probabilities sum",probabilities.sum()
 
     hexVals = np.zeros(raHexen.size)
     hexVals[ix2] = decam2hp.hexalateMap(obsRa[ix],obsDec[ix], probabilities[ix],
         raHexen[ix2], decHexen[ix2])
+    if verbose  :
+        print "hexVals max", hexVals.max()
     rank=np.argsort(hexVals); 
     rank = rank[::-1];# sort from large to small by flipping natural argsort order
     return raHexen, decHexen, hexVals, rank

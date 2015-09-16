@@ -35,6 +35,7 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     import modelRead
     import healpy as hp
     import hp2np
+    debug = 0
     # === prep the maps
     ligo = hp.read_map(skymap)
     ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
@@ -44,6 +45,9 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     models = modelRead.getModels()
     # ==== calculate maps during a full night of observing
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(obs,mjd,distance,models)
+    if debug :
+        return  obs, trigger_id, mjd, distance, models, times, probs,data_dir
+
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, mjd, \
         distance, models, times, probs,data_dir)
     return probs, times
