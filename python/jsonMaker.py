@@ -43,6 +43,7 @@ def writeJson(ra,dec,
             tiling = tilingList[j]
             filter = filterList[j]
             exp = exposureList[j]
+            offsets[tiling]
             delRa = offsets[tiling][0]
             delDec = offsets[tiling][1]
             tra = ra[i]
@@ -99,3 +100,4 @@ def tileOffsets() :
 # production offsets 16,17
     offsets[16] = -1.1388, 0.0166
     offsets[17] =  0.0484, -0.6725
+    return offsets

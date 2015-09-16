@@ -608,28 +608,28 @@ def equalAreaPlot(figure,slot,simNumber,data_dir) :
 
     plt.axes().set_aspect('equal')
 
-    name = data_dir+str(simNumber)+str(slot)+"-ligo-eq.png"
+    name = data_dir+str(simNumber)+"-"+str(slot)+"-ligo-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,ligo)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
-    name = data_dir+str(simNumber)+str(slot)+"-maglim-eq.png"
+    name = data_dir+str(simNumber)+"-"+str(slot)+"-maglim-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,maglim,vmin=17);
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
-    name = data_dir+str(simNumber)+str(slot)+"-prob-eq.png"
+    name = data_dir+str(simNumber)+"-"+str(slot)+"-prob-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,prob)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
-    name = data_dir+str(simNumber)+str(slot)+"-probXligo-eq.png"
+    name = data_dir+str(simNumber)+"-"+str(slot)+"-probXligo-eq.png"
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,prob*ligo)
     plt.plot(desx,desy,color="w")
