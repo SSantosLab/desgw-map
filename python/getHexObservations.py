@@ -44,7 +44,10 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     # ==== get the neutron star explosion models
     models = modelRead.getModels()
     # ==== calculate maps during a full night of observing
-    probs,times = mapsAtTimeT.oneDayOfTotalProbability(obs,mjd,distance,models)
+    deltaTime = 0.0223  #32 minutes
+    deltaTime   = 0.0417  # 60 minutes and 6 minu
+    probs,times = mapsAtTimeT.oneDayOfTotalProbability(
+        obs,mjd,distance,models, deltaTime=deltaTime)
     if skipHexalate:
         return probs, times
     if debug :
@@ -62,7 +65,9 @@ def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
     if np.size(times) == 0 : return 0,0
     if probs.sum() < 1e-9 : return 0,0
     verbose = 0
-    n_slots = findNSlots(hoursAvailable)
+    slotDuration = 32. # minutes for 4 hexes per slot izzi
+    slotDuration = 60. # minutes for 6 hexes per slot izz
+    n_slots = findNSlots(hoursAvailable,slotDuration=slotDuration)
     n_maps = times.size
     if verbose: print n_slots, n_maps
     if n_maps == n_slots : 
@@ -85,7 +90,11 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
     if n_slots == 0: 
         return 0,0,0
     # compute the observing schedule
-    hoursObserving=observing(simNumber,n_slots,mapDirectory, mapZero=mapZero)
+    maxHexesPerSlot = 4 # for 32 minute slots
+    maxHexesPerSlot = 10 # for 60 minute slots
+    hoursObserving=observing(
+        simNumber,n_slots,mapDirectory, mapZero=mapZero,
+        maxHexesPerSlot = maxHexesPerSlot)
     # print stats to screen
     ra,dec,prob,mjd,slotNumbers,islots = observingStats(hoursObserving)
     # save results to the record
@@ -237,6 +246,9 @@ def findStartMap ( probs, times, n_slots ) :
 #   do it again, untill all n time slots are full.
 #       maxHexesPerSlot=4 comes from 32 minute duration slots
 #       and 8 minutes/hex (izzi 2 min/image)
+#
+#   if we do zzi at 2 mins/image then 4 min/hex + 2 min/hex2 = 6 mins
+#   call it 60 minute slots  and 10 hexes/slot
 def observing(sim, nslots, data_dir, 
         maxHexesPerSlot = 4, mapZero = 0, verbose=0) :
     # prep the observing lists
