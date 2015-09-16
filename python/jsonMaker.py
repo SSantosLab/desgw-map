@@ -27,12 +27,11 @@ import numpy as np
 # ToDo: what is a hex_id? -get from master json file. 
 # ToDo: put trigger_id and night into seq id
 #
-def writeJson(ra,dec,
+def writeJson(ra,dec, seqid="none", seqnum=0, seqtot=0,
         exposureList = [90,90,90,90], 
         filterList = ["i","z","z","i"],
         tilingList = [9,9,10,10], 
-        jsonFilename="des-gw.json", 
-        seqid="none", seqnum=0, seqtot=0) :
+        jsonFilename="des-gw.json") :
     offsets = tileOffsets()
     fd = open(jsonFilename,"w")
     fd.write("[\n")

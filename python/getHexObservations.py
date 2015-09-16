@@ -524,7 +524,7 @@ def turnObservingRecordIntoJSONs(
     seqzero = 0
     # write big json file
     name = jsonName(simNumber, mapDirectory)
-    jsonMaker.writeJson(ra,dec, jsonFilename=name, simNumber, seqnum, seqtot)
+    jsonMaker.writeJson(ra,dec, simNumber, seqnum, seqtot, jsonFilename=name)
 
     # write slot json files
     for slot in np.unique(slotNumbers) :
