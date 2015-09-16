@@ -84,7 +84,7 @@ def writeJson(ra,dec,
     fd.write("]\n")
     fd.close()
 
-> # production offsets are in DES docdb 7269
+# production offsets are in DES docdb 7269
 def tileOffsets() :
     offsets = dict()
 # blessed offsets 0
