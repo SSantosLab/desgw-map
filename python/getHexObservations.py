@@ -531,8 +531,8 @@ def turnObservingRecordIntoJSONs(
         ix = slotNumbers == slot
         slotMJD = mjd[ix][0]  ;# just get first mjd in this slot
         name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
-        jsonMaker.writeJson(ra[ix],dec[ix], jsonFilename=name,
-        simNumber, i, seqtot)
+        jsonMaker.writeJson(ra[ix],dec[ix], 
+            simNumber, i, seqtot, jsonFilename=name)
         seqzero =+ ra[ix].size
         
     # find slot with the maximum probability
