@@ -41,8 +41,8 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     if skipAll :
         print "=============>>>> ",
         print "prepare: using cached probabilities, times, and maps"
-        print "\t reading ",filename
-        probs, times = np.genfromtxt(filename, unpack=True)
+        print "\t reading ",probabilityTimesCache
+        probs, times = np.genfromtxt(probabilityTimesCache, unpack=True)
         return probs, times
         
     # === prep the maps
@@ -53,8 +53,8 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     # ==== get the neutron star explosion models
     models = modelRead.getModels()
     # ==== calculate maps during a full night of observing
-    deltaTime = 0.0223  #32 minutes
     deltaTime   = 0.0417  # 60 minutes and 6 minu
+    deltaTime = 0.0223*2  #32 minutes -> 64
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(
         obs,mjd,distance,models, deltaTime=deltaTime,
         probTimeFile= probabilityTimesCache )
@@ -76,8 +76,8 @@ def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
     if np.size(times) == 0 : return 0,0
     if probs.sum() < 1e-9 : return 0,0
     verbose = 0
-    slotDuration = 32. # minutes for 4 hexes per slot izzi
     slotDuration = 60. # minutes for 6 hexes per slot izz
+    slotDuration = 32.*2 # minutes for 4 hexes per slot izzi (4*2)
     n_slots = findNSlots(hoursAvailable,slotDuration=slotDuration)
     n_maps = times.size
     if verbose: print n_slots, n_maps
@@ -101,8 +101,8 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
     if n_slots == 0: 
         return 0,0,0
     # compute the observing schedule
-    maxHexesPerSlot = 4 # for 32 minute slots
     maxHexesPerSlot = 10 # for 60 minute slots
+    maxHexesPerSlot = 4*2 # for 32 minute slots *2
     hoursObserving=observing(
         simNumber,n_slots,mapDirectory, mapZero=mapZero,
         maxHexesPerSlot = maxHexesPerSlot)
@@ -555,7 +555,8 @@ def turnObservingRecordIntoJSONs(
         tmpname, name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
         jsonMaker.writeJson(ra[ix],dec[ix], 
             simNumber, seqzero, seqtot, jsonFilename=tmpname)
-        desJson(tmpname, name, mapDirectory) 
+        # JTA quiet
+        #desJson(tmpname, name, mapDirectory) 
         seqzero =+ ra[ix].size
         
     # find slot with the maximum probability
