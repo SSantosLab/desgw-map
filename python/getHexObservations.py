@@ -29,7 +29,7 @@ import jsonMaker
 #       distance or the estimated distance from LIGO?
 #       >>> distance = 75. ;# Mpc, as an estimated horizon distance
 def prepare(skymap, mjd, trigger_id, data_dir,
-        distance=75, exposure_length=180., skipHexalate=False,
+        distance=75, exposure_length=180., skipHexelate=False,
         skipAll=False) :
     import mapsAtTimeT
     import mags
@@ -58,7 +58,7 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(
         obs,mjd,distance,models, deltaTime=deltaTime,
         probTimeFile= probabilityTimesCache )
-    if skipHexalate:
+    if skipHexelate:
         print "=============>>>> prepare: using cached maps"
         return probs, times
     if debug :
