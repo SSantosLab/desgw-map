@@ -58,7 +58,7 @@ def oneDayOfTotalProbability (obs, mjd, distance, models,
     # the work.
     totalProbs,times = manyDaysOfTotalProbability(
         obs, mjd, distance, models, startOfDays=0,endOfDays=1,
-        deltaTime=deltaTime, probTimeFile="probTime.txt") 
+        deltaTime=deltaTime, probTimeFile=probTimeFile) 
 
     # informational
     print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
