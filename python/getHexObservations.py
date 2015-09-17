@@ -29,13 +29,22 @@ import jsonMaker
 #       distance or the estimated distance from LIGO?
 #       >>> distance = 75. ;# Mpc, as an estimated horizon distance
 def prepare(skymap, mjd, trigger_id, data_dir,
-        distance=75, exposure_length=180., skipHexalate=False) :
+        distance=75, exposure_length=180., skipHexalate=False,
+        skipAll=False) :
     import mapsAtTimeT
     import mags
     import modelRead
     import healpy as hp
     import hp2np
     debug = 0
+    probabilityTimesCache = data_dir +"probabilityTimesCache.txt"
+    if skipAll :
+        print "=============>>>> ",
+        print "prepare: using cached probabilities, times, and maps"
+        print "\t reading ",filename
+        probs, times = np.genfromtxt(filename, unpack=True)
+        return probs, times
+        
     # === prep the maps
     ligo = hp.read_map(skymap)
     ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
@@ -47,8 +56,10 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     deltaTime = 0.0223  #32 minutes
     deltaTime   = 0.0417  # 60 minutes and 6 minu
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(
-        obs,mjd,distance,models, deltaTime=deltaTime)
+        obs,mjd,distance,models, deltaTime=deltaTime,
+        probTimeFile= probabilityTimesCache )
     if skipHexalate:
+        print "=============>>>> prepare: using cached maps"
         return probs, times
     if debug :
         return  obs, trigger_id, mjd, distance, models, times, probs,data_dir
@@ -536,17 +547,15 @@ def turnObservingRecordIntoJSONs(
         ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) :
     seqtot =  ra.size
     seqzero = 0
-    # write big json file
-    name = jsonName(simNumber, mapDirectory)
-    jsonMaker.writeJson(ra,dec, simNumber, seqzero, seqtot, jsonFilename=name)
 
     # write slot json files
     for slot in np.unique(slotNumbers) :
         ix = slotNumbers == slot
         slotMJD = mjd[ix][0]  ;# just get first mjd in this slot
-        name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
+        tmpname, name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
         jsonMaker.writeJson(ra[ix],dec[ix], 
-            simNumber, seqzero, seqtot, jsonFilename=name)
+            simNumber, seqzero, seqtot, jsonFilename=tmpname)
+        desJson(tmpname, name, mapDirectory) 
         seqzero =+ ra[ix].size
         
     # find slot with the maximum probability
@@ -561,9 +570,23 @@ def turnObservingRecordIntoJSONs(
 
     return maxProb_slot
 
-def jsonName(simNumber, mapDirectory) :
-    name = eventName(mapDirectory, str(simNumber)) + ".json"
-    return name
+# verbose can be 0, 1=info, 2=debug
+def desJson(tmpname, name, data_dir, verbose = 1) :
+    import os
+    import logging
+    from collections import defaultdict
+    import gwwide
+    gw_data_dir          = os.environ["DESGW_DATA_DIR"]
+    des_json  = gw_data_dir + "all_wide_sispi_queue.json"
+    log_levels = defaultdict(lambda:logging.WARNING)
+    log_levels[1] = logging.INFO
+    log_levels[2] = logging.DEBUG
+    logging.basicConfig(filename=data_dir+"json-conversion.log",
+        format='%(asctime)s %(message)s', level=verbose)
+
+    logging.info("Begin")
+    gwwide.file_gwwide(tmpname, des_json, name)
+
 def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
     from pyslalib import slalib
     date = slalib.sla_djcl(mjd)
@@ -574,8 +597,9 @@ def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
     minute = np.int( (date[3]*24.-hour)*60.  )
     time = "UTC-{}-{}-{}-{}:{}:00".format(year,month,day,hour,minute)
     slot = "-{}-".format(np.int(slot))
+    tmpname = eventName(mapDirectory, str(simNumber)) + slot + time + "-tmp.json"
     name = eventName(mapDirectory, str(simNumber)) + slot + time + ".json"
-    return name
+    return tmpname, name
      
 # ==================================
 # plotting 

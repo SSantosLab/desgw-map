@@ -187,9 +187,9 @@ class observed(object):
         x,y = mcbryde.mcbryde(self.ra/self.degToRad, self.dec/self.degToRad, alpha=alpha)
         self.x = x
         self.y = y
-        x,y = mcbryde.mcbryde(self.ha/self.degToRad, self.dec/self.degToRad, alpha=alpha)
-        self.hx = x
-        self.hy = y
+        hx,hy = mcbryde.mcbryde(self.ha/self.degToRad, self.dec/self.degToRad, alpha=alpha)
+        self.hx = hx
+        self.hy = hy
         self.maglim = m
         self.maglimall = mglobal
 

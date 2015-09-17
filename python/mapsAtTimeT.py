@@ -40,6 +40,57 @@ import modelRead
 #   to re-make the maps and save them to disk
 #
 
+# Over 11 days
+#   calculate sourceProb.map and given a model, sm.calculateProb()
+#   sum the probability in the map, append that number to an array,
+#   return
+#
+#   On the subject of deltaTime:
+#    deltaTime = 1./24.  ;# once per hour
+#    deltaTime = 0.0223  ;# 32 minutes, = 1 hex (i,z,z,i) 180s+30s = 8 minutes 
+#       so 4 hexes per 32 minute slot. 
+#       More convenient for survey strategy planning (as 8 doesnt go into 60)
+
+
+def oneDayOfTotalProbability (obs, mjd, distance, models,
+        deltaTime=0.0223, probTimeFile="probTime.txt") :
+
+    # the work.
+    totalProbs,times = manyDaysOfTotalProbability(
+        obs, mjd, distance, models, startOfDays=0,endOfDays=1,
+        deltaTime=deltaTime, probTimeFile="probTime.txt") 
+
+    # informational
+    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
+    print totalProbs,"\n",times
+    print "===== times with total prob > 10**-2"
+    ix = totalProbs > 10**-2; 
+    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
+    print totalProbs[ix],"\n",times[ix]
+    return totalProbs[ix],times[ix]
+
+
+def manyDaysOfTotalProbability (
+        obs, mjdOfBurst, distance, models, 
+        startOfDays=0, endOfDays=11, deltaTime=0.0223, 
+        probTimeFile="probTime.txt") :
+    times = []
+    totalProbs = []
+
+    # in the language of getHexObservations:
+    #   each slot is 32 minutes, each slot can hold 4 hexes
+    for time in np.arange(startOfDays,endOfDays,deltaTime) :
+        if time < (1.5/24.) : continue
+        print "================================== ",
+        print "hours since Time Zero: {:.1f}".format(time*24.)
+        totalProb = totalProbability(obs, mjdOfBurst, time, distance, models)
+        times.append(time)
+        totalProbs.append(totalProb)
+    totalProbs =np.array(totalProbs)
+    times = np.array(times)
+    data = np.array([totalProbs, times]).T
+    np.savetxt(probTimeFile, data, "%f %f")
+    return totalProbs,times
 
 def probabilityMaps(obs, mjdOfBurst, daysSinceBurst, distance, models,
         filter="i", exposure=180, ns_model="known") :
@@ -60,47 +111,6 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
         models, filter, exposure, ns_model)
     totalProb = (obs.map * sm.probMap).sum()
     return totalProb
-
-# Over 11 days
-#   calculate sourceProb.map and given a model, sm.calculateProb()
-#   sum the probability in the map, append that number to an array,
-#   return
-#
-#   On the subject of deltaTime:
-#    deltaTime = 1./24.  ;# once per hour
-#    deltaTime = 0.0223  ;# 32 minutes, = 1 hex (i,z,z,i) 180s+30s = 8 minutes 
-#       so 4 hexes per 32 minute slot. 
-#       More convenient for survey strategy planning (as 8 doesnt go into 60)
-def manyDaysOfTotalProbability (
-        obs, mjdOfBurst, distance, models, 
-        startOfDays=0, endOfDays=11, deltaTime=0.0223) :
-    times = []
-    totalProbs = []
-
-    # in the language of getHexObservations:
-    #   each slot is 32 minutes, each slot can hold 4 hexes
-    for time in np.arange(startOfDays,endOfDays,deltaTime) :
-        if time < (1.5/24.) : continue
-        print "================================== ",
-        print "hours since Time Zero: {:.1f}".format(time*24.)
-        totalProb = totalProbability(obs, mjdOfBurst, time, distance, models)
-        times.append(time)
-        totalProbs.append(totalProb)
-    totalProbs =np.array(totalProbs)
-    times = np.array(times)
-    return totalProbs,times
-
-def oneDayOfTotalProbability (obs, mjd, distance, models,deltaTime=0.0223) :
-    totalProbs,times = manyDaysOfTotalProbability(
-        obs, mjd, distance, models, startOfDays=0,endOfDays=1,
-        deltaTime=0.0223)
-    print "total summed probability of detection (list1) and daysSinceBurst (list2)"
-    print totalProbs,"\n",times
-    print "===== times with total prob > 10**-2"
-    ix = totalProbs > 10**-2; 
-    print "total summed probability of detection (list1) and daysSinceBurst (list2)"
-    print totalProbs[ix],"\n",times[ix]
-    return totalProbs[ix],times[ix]
 
 
 # for each time in the times,
@@ -153,10 +163,10 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         hp.write_map(name, obs.hy)
         name = nameStem + "-x.hp"
         if os.path.exists(name): os.remove(name)
-        hp.write_map(name, obs.hx)
+        hp.write_map(name, obs.x)
         name = nameStem + "-y.hp"
         if os.path.exists(name): os.remove(name)
-        hp.write_map(name, obs.hy)
+        hp.write_map(name, obs.y)
         name = nameStem + "-map.hp"
         if os.path.exists(name): os.remove(name)
         hp.write_map(name, obs.map)
