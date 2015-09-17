@@ -60,15 +60,7 @@ def oneDayOfTotalProbability (obs, mjd, distance, models,
         obs, mjd, distance, models, startOfDays=0,endOfDays=1,
         deltaTime=deltaTime, probTimeFile=probTimeFile) 
 
-    # informational
-    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
-    print totalProbs,"\n",times
-    print "===== times with total prob > 10**-2"
-    ix = totalProbs > 10**-2; 
-    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
-    print totalProbs[ix],"\n",times[ix]
-    return totalProbs[ix],times[ix]
-
+    return totalProbs,times
 
 def manyDaysOfTotalProbability (
         obs, mjdOfBurst, distance, models, 
@@ -88,9 +80,17 @@ def manyDaysOfTotalProbability (
         totalProbs.append(totalProb)
     totalProbs =np.array(totalProbs)
     times = np.array(times)
-    data = np.array([totalProbs, times]).T
+    # informational
+    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
+    print totalProbs,"\n",times
+    print "===== times with total prob > 10**-2"
+    ix = totalProbs > 10**-2; 
+    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
+    print totalProbs[ix],"\n",times[ix]
+
+    data = np.array([totalProbs[ix], times[ix]]).T
     np.savetxt(probTimeFile, data, "%f %f")
-    return totalProbs,times
+    return totalProbs[ix],times[ix]
 
 def probabilityMaps(obs, mjdOfBurst, daysSinceBurst, distance, models,
         filter="i", exposure=180, ns_model="known") :

@@ -53,8 +53,8 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     # ==== get the neutron star explosion models
     models = modelRead.getModels()
     # ==== calculate maps during a full night of observing
-    deltaTime   = 0.0417  # 60 minutes and 6 minu
     deltaTime = 0.0223*2  #32 minutes -> 64
+    deltaTime   = 0.0417  # 60 minutes and 6 minu
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(
         obs,mjd,distance,models, deltaTime=deltaTime,
         probTimeFile= probabilityTimesCache )
@@ -76,8 +76,8 @@ def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
     if np.size(times) == 0 : return 0,0
     if probs.sum() < 1e-9 : return 0,0
     verbose = 0
-    slotDuration = 60. # minutes for 6 hexes per slot izz
     slotDuration = 32.*2 # minutes for 4 hexes per slot izzi (4*2)
+    slotDuration = 60. # minutes for 6 hexes per slot izz
     n_slots = findNSlots(hoursAvailable,slotDuration=slotDuration)
     n_maps = times.size
     if verbose: print n_slots, n_maps
@@ -96,13 +96,14 @@ def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
     return n_slots, mapZero
 
 # ==== figure out what to observe
-def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
+def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0,
+    skipJson = False ) :
     # if the number of slots is zero, nothing to observe or plot
     if n_slots == 0: 
         return 0,0,0
     # compute the observing schedule
-    maxHexesPerSlot = 10 # for 60 minute slots
     maxHexesPerSlot = 4*2 # for 32 minute slots *2
+    maxHexesPerSlot = 10 # for 60 minute slots
     hoursObserving=observing(
         simNumber,n_slots,mapDirectory, mapZero=mapZero,
         maxHexesPerSlot = maxHexesPerSlot)
@@ -111,8 +112,10 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0) :
     # save results to the record
     observingRecord(hoursObserving, simNumber, mapDirectory)
     # write jsons and get slot number  of maximum probability
-    maxProb_slot = turnObservingRecordIntoJSONs(
-        ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) 
+    maxProb_slot = maxProbabilitySlot(prob,slotNumbers)
+    if not skipJson :
+        turnObservingRecordIntoJSONs(
+            ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) 
 
     return maxProb_slot
 
@@ -555,10 +558,10 @@ def turnObservingRecordIntoJSONs(
         tmpname, name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
         jsonMaker.writeJson(ra[ix],dec[ix], 
             simNumber, seqzero, seqtot, jsonFilename=tmpname)
-        # JTA quiet
-        #desJson(tmpname, name, mapDirectory) 
+        desJson(tmpname, name, mapDirectory) 
         seqzero =+ ra[ix].size
         
+def maxProbabilitySlot(prob,slotNumbers) :
     # find slot with the maximum probability
     maxProb = -1; maxProb_slot = -1
     for slot in np.unique(slotNumbers) :
@@ -568,8 +571,8 @@ def turnObservingRecordIntoJSONs(
             maxProb = sumProb
             maxProb_slot = slot
     maxProb_slot = np.int(maxProb_slot)
-
     return maxProb_slot
+
 
 # verbose can be 0, 1=info, 2=debug
 def desJson(tmpname, name, data_dir, verbose = 1) :
