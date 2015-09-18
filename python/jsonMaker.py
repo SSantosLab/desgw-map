@@ -51,6 +51,7 @@ def writeJson(ra,dec, seqid="none", seqnum=0, seqtot=0,
             filter = filterList[j]
             exp = exposureList[j]
             offsets[tiling]
+            #print tiling, offsets[tiling]
             delRa = offsets[tiling][0]
             delDec = offsets[tiling][1]
             tra = ra[i]

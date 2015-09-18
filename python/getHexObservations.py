@@ -28,16 +28,36 @@ import jsonMaker
 #       distance is a problem- the question is whether we want a horizon
 #       distance or the estimated distance from LIGO?
 #       >>> distance = 75. ;# Mpc, as an estimated horizon distance
-def prepare(skymap, mjd, trigger_id, data_dir,
-        distance=75, exposure_length=180., skipHexelate=False,
-        skipAll=False) :
+#
+#    deltaTime = 0.0223  => 32 minute slots  for izzi 90sec exp, 4 hex/slot
+#    deltaTime = 0.0446  => 62 minute slots  for izzi 90sec exp, 8 hex/slot
+#    deltaTime = 0.0417  => 60 minute slots  for izz 90sec exp, 10 hex/slot
+#    deltaTime = 0.0208  => 30 minute slots  for izz 90sec exp,  5 hex/slot
+#       The first is flexible to observing conditions,
+#       while the second is x2 faster as there are less maps to hexalate
+#       The third shows a different tiling/filter complement
+#
+#   skipHexelate reuses existing hexelated maps, the biggest compute time
+#   skipAll reuses  hexelated maps and probabilities/times, the 2nd largest time
+#
+#   exposure_length is only used in the computation of the limiting mag map
+#
+#   if start_mjd =0, then the computations start at the burst_mjd,
+#   else at start_mjd
+#
+def prepare(skymap, burst_mjd, trigger_id, data_dir,
+        distance=75, exposure_length=180., 
+        deltaTime = 0.0223, start_mjd = 0,
+        skipHexelate=False, skipAll=False) :
     import mapsAtTimeT
     import mags
     import modelRead
     import healpy as hp
     import hp2np
     debug = 0
-    probabilityTimesCache = data_dir +"probabilityTimesCache.txt"
+    if start_mjd == 0: start_mjd = burst_mjd
+
+    probabilityTimesCache = data_dir +"/probabilityTimesCache.txt"
     if skipAll :
         print "=============>>>> ",
         print "prepare: using cached probabilities, times, and maps"
@@ -45,18 +65,19 @@ def prepare(skymap, mjd, trigger_id, data_dir,
         probs, times = np.genfromtxt(probabilityTimesCache, unpack=True)
         return probs, times
         
+    # ==== get the neutron star explosion models
+    models = modelRead.getModels()
+
     # === prep the maps
     ligo = hp.read_map(skymap)
     ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
-    obs = mags.observed(ra,dec,ligo, mjd, verbose=False)
+    obs = mags.observed(ra,dec,ligo, start_mjd, verbose=False)
     obs.limitMag("i",exposure=exposure_length)
-    # ==== get the neutron star explosion models
-    models = modelRead.getModels()
+
     # ==== calculate maps during a full night of observing
-    deltaTime = 0.0223*2  #32 minutes -> 64
-    deltaTime   = 0.0417  # 60 minutes and 6 minu
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(
-        obs,mjd,distance,models, deltaTime=deltaTime,
+        obs, burst_mjd, distance, models, 
+        deltaTime=deltaTime, start_mjd= start_mjd,
         probTimeFile= probabilityTimesCache )
     if skipHexelate:
         print "=============>>>> prepare: using cached maps"
@@ -64,20 +85,30 @@ def prepare(skymap, mjd, trigger_id, data_dir,
     if debug :
         return  obs, trigger_id, mjd, distance, models, times, probs,data_dir
 
-    mapsAtTimeT.probabilityMapSaver (obs, trigger_id, mjd, \
+    mapsAtTimeT.probabilityMapSaver (obs, trigger_id, burst_mjd, \
         distance, models, times, probs,data_dir)
     return probs, times
 
+# ========== do simple calculations on how to divide the night
+#
+#   one of the questions is how many hours to devote to observations
+#       hoursAvailable
+#   another is the slot duration
+#       slotDuration = 32.  minutes for 4 hexes per slot of izzi 
+#       slotDuration = 64.  minutes for 8 hexes per slot izzi 
+#       slotDuration = 60.  minutes for 6 hexes per slot izz
+#
 # if the 1% cut isn't in place in mapsAtTimeT.oneDayOfTotalProbability
 # then one expects circa 40-45 maps as there is about 2/hour
 #   with the 1% cut, then one expects far fewer. Perhaps zero.
-def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
+#
+def contemplateTheDivisionsOfTime(
+        probs, times, 
+        hoursAvailable=6, slotDuration=64.) :
     # if the number of slots is zero, nothing to observe or plot
     if np.size(times) == 0 : return 0,0
     if probs.sum() < 1e-9 : return 0,0
     verbose = 0
-    slotDuration = 32.*2 # minutes for 4 hexes per slot izzi (4*2)
-    slotDuration = 60. # minutes for 6 hexes per slot izz
     n_slots = findNSlots(hoursAvailable,slotDuration=slotDuration)
     n_maps = times.size
     if verbose: print n_slots, n_maps
@@ -90,23 +121,40 @@ def contemplateTheDivisionsOfTime(probs, times, hoursAvailable=6) :
         mapZero = findStartMap ( probs, times, n_slots )
     else :
         raise Exception ("no possible way to get here")
-    print "======= >>>>>>>> ========== ",
-    print "n_maps = {}, n_slots = {}, mapZero = {}, prob_max = {:.6}".format(
+    print "============================================= "
+    print "\t n_maps = {}, n_slots = {}, mapZero = {}, prob_max = {:.6}".format(
         n_maps, n_slots, mapZero, probs.max())
+    print "============================================= "
     return n_slots, mapZero
 
 # ==== figure out what to observe
-def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0,
-    skipJson = False ) :
+#
+# Another fast routine
+#   basic for this routine is how many hexes per slot
+#       maxHexesPerSlot =  4 # for 32 minute slots izzi
+#       maxHexesPerSlot =  8 # for 64 minute slots izzi
+#       maxHexesPerSlot = 10 # for 60 minute slots izz
+#
+#   skipJson does just that, speeding the routine up considerably
+#
+#   if a doneFile is given, which should be
+#   something with ra,dec in columns 1,2, like 
+#       G184098-ra-dec-prob-mjd-slot.txt
+#   then those ra,decs are interpreted as hex centers,
+#   and hexes in the hexVals maps within 36" of the ra,decs
+#   are removed- they are done, the question is what to observe next
+#
+def now(n_slots, mapDirectory="jack/", simNumber=13681, 
+        mapZero=0, maxHexesPerSlot=8, 
+        doneFile = "",
+        skipJson = False ) :
     # if the number of slots is zero, nothing to observe or plot
     if n_slots == 0: 
         return 0,0,0
     # compute the observing schedule
-    maxHexesPerSlot = 4*2 # for 32 minute slots *2
-    maxHexesPerSlot = 10 # for 60 minute slots
     hoursObserving=observing(
         simNumber,n_slots,mapDirectory, mapZero=mapZero,
-        maxHexesPerSlot = maxHexesPerSlot)
+        maxHexesPerSlot = maxHexesPerSlot, doneFile=doneFile)
     # print stats to screen
     ra,dec,prob,mjd,slotNumbers,islots = observingStats(hoursObserving)
     # save results to the record
@@ -120,7 +168,7 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681, mapZero=0,
     return maxProb_slot
 
 #
-# there are possibilities. Show them.
+# ====== there are possibilities. Show them.
 #
 def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
@@ -181,7 +229,7 @@ def nothingToObserveShowSomething(skymap, mjd, exposure_length) :
 # no, no, no, we actually can see something: lets see the best plots
 #
 #   raMap, decMap, ligoMap, maglimMap, probMap, haMap, xMap,yMap, hxMap,hyMap = readMaps(
-#   ra, dec, ligo, maglim, prob, ha, x,y hx,hy = readMaps(
+#   ra, dec, ligo, maglim, prob, ha, x,y, hx,hy = readMaps(
 def readMaps(data_dir, simNumber, slot) :
     import healpy as hp
     # get the maps for a reasonable slot
@@ -248,8 +296,6 @@ def findStartMap ( probs, times, n_slots ) :
     minToMax = np.argsort(n_mapsToTProb)
     bestStart = n_mapStart[minToMax[-1]]
     bestStart = int(bestStart)
-    #print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
-    #print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     return bestStart
 
 
@@ -264,7 +310,8 @@ def findStartMap ( probs, times, n_slots ) :
 #   if we do zzi at 2 mins/image then 4 min/hex + 2 min/hex2 = 6 mins
 #   call it 60 minute slots  and 10 hexes/slot
 def observing(sim, nslots, data_dir, 
-        maxHexesPerSlot = 4, mapZero = 0, verbose=0) :
+        maxHexesPerSlot = 4, mapZero = 0, verbose=0,
+        doneFile = "jack2/G184098-ra-dec-prob-mjd-slot.txt") :
     # prep the observing lists
     observingSlots = np.arange(0,nslots)
     slotsObserving = dict()
@@ -283,7 +330,11 @@ def observing(sim, nslots, data_dir,
     for i in observingSlots :
         map_i = i + mapZero
         raHexen, decHexen, hexVal, rank, mjd, slotNum = \
-                loadHexalatedProbabilities( sim, map_i, data_dir)
+           loadHexalatedProbabilities( sim, map_i, data_dir)
+        if doneFile != "" :
+            raHexen, decHexen, hexVal, rank, mjd, slotNum = \
+                eliminateHexesAlreadyDone(doneFile, 
+                raHexen, decHexen, hexVal, rank, mjd, slotNum )
         islot = i*np.ones(raHexen.size)
         print map_i, "map size= {};".format(raHexen.size), 
 
@@ -435,6 +486,28 @@ def loadHexalatedProbabilities(sim, slot, data_dir) :
     slots = np.ones(raHexen.size)*slot
     return raHexen, decHexen, hexVal, rank, mjd, slots
 
+# ra,dec of the already done file should be in cols 1,2 (1-based)
+# as in G184098-ra-dec-prob-mjd-slot.txt
+def eliminateHexesAlreadyDone(infile, ra, dec, hexVal, rank, mjd, slots) :
+    doneRa, doneDec = np.genfromtxt(infile, unpack=True, usecols=(0,1))
+    mask = np.ones(len(ra), dtype=bool)
+    for i in range(0,doneRa.size) :
+        cosdec = np.cos(doneDec[i]*np.pi/180)
+        # within 36" of each other
+        ix = ( ((doneRa[i]-ra)/cosdec)**2 + (doneDec[i]-dec)**2) < 0.01
+        mask[ix] = False
+    return ra[mask], dec[mask], hexVal[mask], rank[mask], mjd[mask], slots[mask]
+
+def tester(hexRa, hexDec, ra, dec, vals) :
+    mask = np.zeros(len(ra), dtype=bool)
+    for i in range(0,hexRa.size) :
+        cosdec = np.cos(hexDec[i]*np.pi/180)
+        # within 36" of each other
+        ix = ( ((hexRa[i]-ra)/cosdec)**2 + (hexDec[i]-dec)**2) < 0.01
+        mask[ix] = True
+    return ra[mask], dec[mask], vals[mask]
+    
+    
 
 #
 # search for the single highest probability hex over all of the possible hexes

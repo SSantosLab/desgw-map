@@ -50,32 +50,41 @@ import modelRead
 #    deltaTime = 0.0223  ;# 32 minutes, = 1 hex (i,z,z,i) 180s+30s = 8 minutes 
 #       so 4 hexes per 32 minute slot. 
 #       More convenient for survey strategy planning (as 8 doesnt go into 60)
+#   deltaTime = 0.223*2 ;# twice as long slots, (8 hexes/slot)
 
 
 def oneDayOfTotalProbability (obs, mjd, distance, models,
-        deltaTime=0.0223, probTimeFile="probTime.txt") :
+        deltaTime=0.0223, start_mjd = 0, 
+        probTimeFile="probTime.txt") :
 
     # the work.
     totalProbs,times = manyDaysOfTotalProbability(
-        obs, mjd, distance, models, startOfDays=0,endOfDays=1,
+        obs, mjd, distance, models, 
+        start_mjd = start_mjd, startOfDays=0, endOfDays=1,
         deltaTime=deltaTime, probTimeFile=probTimeFile) 
 
     return totalProbs,times
 
 def manyDaysOfTotalProbability (
-        obs, mjdOfBurst, distance, models, 
+        obs, burst_mjd, distance, models, start_mjd=0,
         startOfDays=0, endOfDays=11, deltaTime=0.0223, 
         probTimeFile="probTime.txt") :
     times = []
     totalProbs = []
 
+    # one might want to delay the start of computations
+    # till some time after the burst
+    if start_mjd == 0: start_mjd = burst_mjd
+    delayTime = start_mjd - burst_mjd
+
     # in the language of getHexObservations:
     #   each slot is 32 minutes, each slot can hold 4 hexes
     for time in np.arange(startOfDays,endOfDays,deltaTime) :
+        time = time + delayTime
         if time < (1.5/24.) : continue
         print "================================== ",
         print "hours since Time Zero: {:.1f}".format(time*24.)
-        totalProb = totalProbability(obs, mjdOfBurst, time, distance, models)
+        totalProb = totalProbability(obs, burst_mjd, time, distance, models)
         times.append(time)
         totalProbs.append(totalProb)
     totalProbs =np.array(totalProbs)
@@ -92,6 +101,10 @@ def manyDaysOfTotalProbability (
     np.savetxt(probTimeFile, data, "%f %f")
     return totalProbs[ix],times[ix]
 
+#==============================================================
+#
+# core computation
+#
 def probabilityMaps(obs, mjdOfBurst, daysSinceBurst, distance, models,
         filter="i", exposure=180, ns_model="known") :
     obs.resetTime(mjdOfBurst+daysSinceBurst)
@@ -112,7 +125,12 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
     totalProb = (obs.map * sm.probMap).sum()
     return totalProb
 
-
+#==============================================================
+#
+# very  expensive hexelation of maps
+#   thus it doublesa a routine that saves 
+#   maps and hexelated maps to disk.
+#
 # for each time in the times,
 # calculate the probabilities, 
 #   and hexalate

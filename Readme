@@ -123,6 +123,63 @@ Dec 5, 2014
 >>> getHexObservations.makeObservingPlots( 
             n_slots, trigger_id, best_slot, data_dir)
 
+# ======== debug hexalation
+>>> obs, trigger_id, mjd, distance, models, times, probs,data_dir = \
+         getHexObservations.prepare(skymap, trigger_mjd, trigger_id, \
+        data_dir, exposure_length=exposure_length, distance=distance)
+>>> gw_data_dir = os.environ["DESGW_DATA_DIR"];hexFile = gw_data_dir + "all-sky-hexCenters.txt"
+>>> print probs,times
+>>> obs,sm = mapsAtTimeT.probabilityMaps( obs, mjd, times[10], distance, models)
+>>> raHexen, decHexen, hexVals, rank = hexalate.cutAndHexalate (\
+        obs, sm, hexFile)
+
+# ======== real event
+>>> import numpy as np; import os; import getHexObservations
+>>> out_dir = "jack2/";  data_dir = out_dir
+>>> skymap = "/data/des41.a/data/desgw/maininjector_devel/real-triggers/G184098/G184098_bayestar.fits"
+>>> skymap = "/data/des41.a/data/desgw/maininjector_devel/real-triggers/G184098/skyprobcc_cWB_complete.fits"
+>>> trigger_id = "G184098" ; trigger_mjd = 57279.4102; distance = 10.
+>>> hours_available=3.; exposure_length=180.; 
+# ==== calculate maps during a full night of observing
+>>> probs,times = getHexObservations.prepare(skymap, trigger_mjd, trigger_id, \
+    data_dir, exposure_length=exposure_length, distance=distance)
+>>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
+    probs, times, hoursAvailable=hours_available); 
+# ==== figure out what to observe during that night
+>>> best_slot  = getHexObservations.now( \
+    n_slots, mapDirectory=data_dir, simNumber=trigger_id, mapZero=map_zero,
+    skipJson=True)
+>>> getHexObservations.makeObservingPlots( 
+            n_slots, trigger_id, best_slot, data_dir)
+
+# test out the new start_mjd and the rationalization of slot duration etc
+#  30 minute per slot, 5 hexes/slot
+# thursday mid night 57283 -0.5 call it 57282.6
+>>> probs,times = getHexObservations.prepare(skymap, trigger_mjd, trigger_id, \
+     data_dir, exposure_length=exposure_length, distance=distance, \
+    start_mjd=trigger_m57282.6, deltaTime =0.02083)
+>>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
+    probs, times, hoursAvailable=hours_available, slotDuration=30.); 
+>>> best_slot  = getHexObservations.now( \
+    n_slots, mapDirectory=data_dir, simNumber=trigger_id, \
+    mapZero=map_zero, maxHexesPerSlot=5, skipJson=True)
+>>> getHexObservations.makeObservingPlots( 
+            n_slots, trigger_id, best_slot, data_dir)
+>>> reload(getHexObservations); reload(mapsAtTimeT)
+
+>>> rahex,dechex = np.genfromtxt(hexFile, unpack=True)
+>>> ra2, dec2 = np.genfromtxt("python/jack2/G184098-ra-dec-prob-mjd-slot.txt", unpack=True)
+>>> ra_lmc, dec_lmc = np.genfromtxt("python/jack2/lmc.radec.txt", unpack=True)
+>>> tra, tdec, tval = getHexObservations.tester(ra2, dec2, rahex, dechex, hexVals)
+>> print  " in 3 slots", tval.sum()
+>>> tra, tdec, tval = getHexObservations.tester(ra_lmc, dec_lmc, ra, dec, vals)
+>> print  " in lmc ", tval.sum()
+>>> ix = (ra2< 140); print ra2.size, ra2[ix].size
+>>> tra, tdec, tval = getHexObservations.tester(ra2[ix], dec2[ix], ra, dec, vals)
+>> print  " in 2.4 slots", tval.sum()
+
+>>> ras, decs = np.genfromtxt("jack2/lasilla.txt", unpack=True, usecols=(1,2))
+>>> 
 
 More to come.
 Jim Annis
