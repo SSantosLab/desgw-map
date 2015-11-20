@@ -157,7 +157,7 @@ Dec 5, 2014
 # thursday mid night 57283 -0.5 call it 57282.6
 >>> probs,times = getHexObservations.prepare(skymap, trigger_mjd, trigger_id, \
      data_dir, exposure_length=exposure_length, distance=distance, \
-    start_mjd=trigger_m57282.6, deltaTime =0.02083)
+    start_mjd=57285.0, deltaTime =0.02083)
 >>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(
     probs, times, hoursAvailable=hours_available, slotDuration=30.); 
 >>> best_slot  = getHexObservations.now( \
@@ -180,6 +180,11 @@ Dec 5, 2014
 
 >>> ras, decs = np.genfromtxt("jack2/lasilla.txt", unpack=True, usecols=(1,2))
 >>> 
+>>> night 3 : 57285.0  data_dir="night3/"; start_mjd=57285.0 
+>>> night 4 : 57286.0  data_dir="night4/"; start_mjd=57286.0 
+>>> probs,times = getHexObservations.prepare(skymap, trigger_mjd, trigger_id,data_dir, exposure_length=exposure_length, distance=distance,start_mjd=57286.0, deltaTime =0.02083,onlyHexesAlreadyDone="../records/G184098-ra-dec-prob-mjd-slot.txt")
+>>> n_slots, map_zero = getHexObservations.contemplateTheDivisionsOfTime(probs, times, hoursAvailable=hours_available, slotDuration=30.);
+>>> best_slot  = getHexObservations.now(n_slots, mapDirectory=data_dir, simNumber=trigger_id,mapZero=map_zero, maxHexesPerSlot=5, skipJson=False)
 
 More to come.
 Jim Annis

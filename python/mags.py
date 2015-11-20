@@ -38,6 +38,7 @@ license="""
 # % wget  https://github.com/scottransom/pyslalib/archive/master.zip
 # % unzip master.zip
 # % cd pyslalib-master
+# % make
 # % python setup.py install --home=$WORK_DIR/python-home-stash/
 # % python test/test_slalib.py
 # % PYTHONPATH=$PYTHONPATH:$WORK_DIR/python-home-stash/ ;export PYTHONPATH

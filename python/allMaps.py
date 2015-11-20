@@ -54,6 +54,62 @@ def veni( do2015=True) :
     models = modelRead.getModels()
     return sims, mjds, distances, models
 
+#==== a version of big routine #2 to do Hsin-yu Chen's program
+def vidiHYC(sims, mjds, distances, models, do2015=True) :
+    import os.path
+    import getHexObservations
+    if do2015:
+        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
+    else :
+        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
+    file = "bayestar-{:d}.fits.gz"
+    for sim, mjd, distance in zip(sims,mjds,distances) :
+        simfile = file.format(sim)
+        distance = 60.
+        print "sim, distance: ", sim, distance
+        name = "probabilityTimesCache_"+str(sim)+".txt"
+        if os.path.exists(name) : continue
+
+        simfile = data_dir+simfile
+
+        prob, time = getHexObservations.prepare(simfile, mjd, sim,
+            odata_dir, saveHexalationMap=False, doOnlyMaxProbability=True)
+        fd = open(odata_dir+"max_times_and_probs.txt","a")
+        fd.write("{} {} {}\n".format(sim,prob[0], time[0], mjd+time[0]))
+        #fd.write("{} {} {} {}\n".format(sim,prob[0], time[0], mjd+time[0]))
+        fd.close()
+def vidiHYC2 (do2015=True, thresh=0.50, outfile="") :
+    import cumul
+    import healpy as hp
+    if do2015:
+        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
+    else :
+        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
+    file = "bayestar-{:d}.fits.gz"
+    infile = odata_dir + "max_times_and_probs.txt"
+    if outfile == "" :
+        outfile = odata_dir + "max_probs_and_areas.txt"
+    sims, probs, times = np.genfromtxt(infile, unpack=True)
+    areas = np.array([])
+    for sim,prob in zip(sims,probs) :
+        sim = int(sim)
+        print "sim, probability: ", sim, prob
+        if prob == 0.0 :
+            area = 41252.9612494
+        else :
+            simfile = data_dir + file.format(sim)
+            ra,dec,ligo = hp2np.hp2np(odata_dir+"{}-0-map.hp".format(sim))
+            probMap = hp.read_map(odata_dir+"{}-0-probMap.hp".format(sim))
+            nsides = hp.get_nside(ligo)
+            area = cumul.area(ra,dec,ligo*probMap, thresh, nsides)
+        areas = np.append(areas, area)
+    data = np.array([sims, probs, times, areas]).T
+    np.savetxt(outfile, data, "%d %f %.5f %.1f")  
+
 #==== Big routine # 2: find the probabilities over 10 days
 #
 #  For each sim build the  mags.observed object

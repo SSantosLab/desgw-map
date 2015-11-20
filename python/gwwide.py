@@ -44,8 +44,12 @@ def angle(obs1, obs2):
 
     @returns: angular distance in degress
     """
+
     ra1, decl1 = obs1['RA'], obs1['dec']
-    ra2, decl2 = obs2['RA'], obs2['dec']
+    ra2, decl2 = obs2['RA'], obs2['dec'] 
+    if abs(ra1-ra2)<(1.0/(60*60*10000)) and abs(decl1-decl2)<(1.0/(60*60*10000)):
+        return 0.0
+
     sep = degrees( acos( sin(radians(decl1))*sin(radians(decl2))
                          + cos(radians(decl1))*cos(radians(decl2))*cos(radians(ra1-ra2)) ) )
     return sep
@@ -96,7 +100,9 @@ def fix_obs(gw_obs, all_filter_wide_queue):
                   nearest_wide_obs['tiling_id'],
                   nearest_angle)
 
-    if nearest_angle > max_match_angle or gw_obs['expTime']!=90:
+    if not 'exptime' in gw_obs:
+        gw_obs['exptime'] = gw_obs['expTime']
+    if nearest_angle > max_match_angle or gw_obs['exptime']!=90:
         logging.warning("Exposure at %(RA)3.4f %(dec)3.4f not matched", gw_obs)
         for kw in ['count','seqtot','seqnum']:
             gw_obs[kw] = int(gw_obs[kw])

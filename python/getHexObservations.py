@@ -20,7 +20,14 @@ import jsonMaker
 
 #========================================================================
 #
-# main routines: these five are called in Dillon's recycler.py
+# main routines: these seven are called in Dillon's recycler.py
+#   prepare
+#   contemplateTheDivisionsOfTime   
+#   now
+#   economics
+#   makeObservingPlots      
+#   nothingToObserveShowSomething
+#   readMaps   
 #
 #========================================================================
 
@@ -39,6 +46,10 @@ import jsonMaker
 #
 #   skipHexelate reuses existing hexelated maps, the biggest compute time
 #   skipAll reuses  hexelated maps and probabilities/times, the 2nd largest time
+#   saveHexalationMap saves all maps but the hexes, which it skips computing.
+#       skipHexalate really should be named "reuseHexelationMap"
+#   doOnlyMaxProbability = True selects the max prob from the list
+#       and runs the map saving only on it
 #
 #   exposure_length is only used in the computation of the limiting mag map
 #
@@ -46,9 +57,11 @@ import jsonMaker
 #   else at start_mjd
 #
 def prepare(skymap, burst_mjd, trigger_id, data_dir,
-        distance=75, exposure_length=180., 
-        deltaTime = 0.0223, start_mjd = 0,
-        skipHexelate=False, skipAll=False) :
+        distance=60., exposure_length=90., 
+        deltaTime = 0.0208, start_mjd = 0,
+        skipHexelate=False, skipAll=False, 
+        onlyHexesAlreadyDone="", 
+        saveHexalationMap=True, doOnlyMaxProbability=False) :
     import mapsAtTimeT
     import mags
     import modelRead
@@ -57,7 +70,8 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
     debug = 0
     if start_mjd == 0: start_mjd = burst_mjd
 
-    probabilityTimesCache = data_dir +"/probabilityTimesCache.txt"
+    probabilityTimesCache = data_dir + \
+        "/probabilityTimesCache_"+str(trigger_id)+".txt"
     if skipAll :
         print "=============>>>> ",
         print "prepare: using cached probabilities, times, and maps"
@@ -84,9 +98,16 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
         return probs, times
     if debug :
         return  obs, trigger_id, mjd, distance, models, times, probs,data_dir
+    if doOnlyMaxProbability :
+        if len(probs) == 0 : return [0,],[0,]
+        ix = np.argmax(probs)
+        probs = [probs[ix],]
+        times = [times[ix],]
 
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, burst_mjd, \
-        distance, models, times, probs,data_dir)
+        distance, models, times, probs,data_dir, \
+        onlyHexesAlreadyDone=onlyHexesAlreadyDone, 
+        performHexalatationCalculation=saveHexalationMap)
     return probs, times
 
 # ========== do simple calculations on how to divide the night
@@ -97,6 +118,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
 #       slotDuration = 32.  minutes for 4 hexes per slot of izzi 
 #       slotDuration = 64.  minutes for 8 hexes per slot izzi 
 #       slotDuration = 60.  minutes for 6 hexes per slot izz
+#       slotDuration = 30.  minutes for 3 hexes per slot izz
 #
 # if the 1% cut isn't in place in mapsAtTimeT.oneDayOfTotalProbability
 # then one expects circa 40-45 maps as there is about 2/hour
@@ -104,7 +126,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
 #
 def contemplateTheDivisionsOfTime(
         probs, times, 
-        hoursAvailable=6, slotDuration=64.) :
+        hoursAvailable=6, slotDuration=30.) :
     # if the number of slots is zero, nothing to observe or plot
     if np.size(times) == 0 : return 0,0
     if probs.sum() < 1e-9 : return 0,0
@@ -134,6 +156,7 @@ def contemplateTheDivisionsOfTime(
 #       maxHexesPerSlot =  4 # for 32 minute slots izzi
 #       maxHexesPerSlot =  8 # for 64 minute slots izzi
 #       maxHexesPerSlot = 10 # for 60 minute slots izz
+#       maxHexesPerSlot =  5 # for 30 minute slots izz
 #
 #   skipJson does just that, speeding the routine up considerably
 #
@@ -145,7 +168,7 @@ def contemplateTheDivisionsOfTime(
 #   are removed- they are done, the question is what to observe next
 #
 def now(n_slots, mapDirectory="jack/", simNumber=13681, 
-        mapZero=0, maxHexesPerSlot=8, 
+        mapZero=0, maxHexesPerSlot=5, 
         doneFile = "",
         skipJson = False ) :
     # if the number of slots is zero, nothing to observe or plot
@@ -166,6 +189,45 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
             ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) 
 
     return maxProb_slot
+
+# ===== The economics analysis
+#
+#   area_left is th enumber of hexes we have left to observe this season
+#   T_left is the number of days left in the season
+#   rate is the effective rate of triggers
+#
+def economics (simNumber, best_slot, mapDirectory, p_gw = 0.50, 
+        area_left=200., T_left=60., rate=1/30.) :
+    import healpy as hp
+    import cumul
+    import des_optimization
+    import os
+    gw_data_dir = os.environ["DESGW_DATA_DIR"]
+    ra, dec, ligo, maglim, prob, ha, x,y, hx,hy = \
+        readMaps(mapDirectory, simNumber, best_slot)
+
+    area_bar_p,area_bar = np.genfromtxt(
+        gw_data_dir+"/area_bar_table.txt",unpack=True)
+    cumu_area,cumu = np.genfromtxt(
+        gw_data_dir+"/cumul_table_pgw50.txt",unpack=True)
+
+    obsProb = ligo*prob
+    nsides = hp.get_nside(obsProb)
+    area = cumul.area(ra,dec,obsProb, p_gw, nsides)
+    #print cumu_area
+    #print area
+    ix = np.searchsorted(cumu_area, area)
+    if ix >= cumu_area.size :
+        fraction_of_sims_better_than_this_trigger = 1.0
+    else :
+        fraction_of_sims_better_than_this_trigger = cumu[ix]
+
+    prob,area = des_optimization.decision(area_left, T_left, rate, 
+        fraction_of_sims_better_than_this_trigger,
+        cumu, cumu_area, area_bar, area_bar_p)
+    if prob ==  0 :
+        print "ignore event"
+    return prob, area
 
 #
 # ====== there are possibilities. Show them.
@@ -209,7 +271,7 @@ def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
     # return the number of plots made
     return counter
 #
-# its a disaster, compute something
+# ===== its a disaster, compute something
 #
 def nothingToObserveShowSomething(skymap, mjd, exposure_length) :
     import healpy as hp
@@ -498,7 +560,7 @@ def eliminateHexesAlreadyDone(infile, ra, dec, hexVal, rank, mjd, slots) :
         mask[ix] = False
     return ra[mask], dec[mask], hexVal[mask], rank[mask], mjd[mask], slots[mask]
 
-def tester(hexRa, hexDec, ra, dec, vals) :
+def onlyReturnHexesDone(hexRa, hexDec, ra, dec, vals) :
     mask = np.zeros(len(ra), dtype=bool)
     for i in range(0,hexRa.size) :
         cosdec = np.cos(hexDec[i]*np.pi/180)
@@ -673,11 +735,52 @@ def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
     hour = np.int(date[3]*24.)
     minute = np.int( (date[3]*24.-hour)*60.  )
     time = "UTC-{}-{}-{}-{}:{}:00".format(year,month,day,hour,minute)
-    slot = "-{}-".format(np.int(slot))
-    tmpname = eventName(mapDirectory, str(simNumber)) + slot + time + "-tmp.json"
-    name = eventName(mapDirectory, str(simNumber)) + slot + time + ".json"
+    tmpname, name = jsonName(slot, time, simNumber, mapDirectory)
+
     return tmpname, name
-     
+def jsonName (slot, utcString, simNumber, mapDirectory) :
+    slot = "-{}-".format(np.int(slot))
+    tmpname = eventName(mapDirectory, str(simNumber)) + slot + utcString + "-tmp.json"
+    name = eventName(mapDirectory, str(simNumber)) + slot + utcString + ".json"
+    return tmpname, name
+
+def jsonFromRaDecFile(radecfile, nslots, slotZero, 
+        hexesPerSlot, simNumber, mjdList, data_dir) :
+    ra,dec = np.genfromtxt(radecfile, unpack=True,usecols=(0,1),comments="#")
+
+    seqtot =  ra.size
+    seqzero = 0
+
+    # instead, just reorder the ra,dec before feeding to this routine
+    #ix = np.argsort(ra)
+
+    counter = 0
+    slot = slotZero
+    slotRa = np.array([])
+    slotDec = np.array([])
+    for i in range(0,ra.size) :
+        slotRa = np.append(slotRa, ra[i])
+        slotDec = np.append(slotDec, dec[i])
+        counter += 1
+        if counter == hexesPerSlot :
+            tmpname, name = jsonName(slot, mjdList[slot-slotZero], 
+                simNumber,data_dir)
+            jsonMaker.writeJson(slotRa,slotDec, 
+                simNumber, seqzero+(hexesPerSlot*(slot-slotZero)), 
+                seqtot, jsonFilename=tmpname)
+            desJson(tmpname, name, data_dir) 
+            counter = 0
+            slot += 1
+            slotRa = np.array([])
+            slotDec = np.array([])
+    if counter > 0 :
+        tmpname, name = jsonName(slot, mjdList[slot-slotZero], 
+            simNumber,data_dir)
+        jsonMaker.writeJson(slotRa,slotDec, 
+            simNumber, seqzero+(hexesPerSlot*(slot-slotZero)), 
+            seqtot, jsonFilename=tmpname)
+        desJson(tmpname, name, data_dir) 
+        
 # ==================================
 # plotting 
 # ==================================
@@ -854,7 +957,7 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     plt.axes().set_yticks([])
     plt.show()
 
-def plotDecamHexen(ax, ra,dec,alpha, color="r", lw=1) :
+def plotDecamHexen(ax, ra,dec,alpha, color="r", lw=1, plateCaree=False) :
     import decam2hp
     import matplotlib.patches 
     import matplotlib.path 
@@ -863,6 +966,8 @@ def plotDecamHexen(ax, ra,dec,alpha, color="r", lw=1) :
     for i in range(0,nHex) :
         hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i])
         hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha)
+        if plateCaree:
+            hexX,hexY = hexRa, hexDec
         hex_path = matplotlib.path.Path(zip(hexX,hexY))
         hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
         #hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor="w", lw=1.5, fill=False)
@@ -894,3 +999,55 @@ def plotLigoContours(x,y, vals, whiteLine=False) :
         plt.contour(xi,yi,zi,con_levels,linewidths=0.66,colors="r", levels=levels)
     else :
         plt.contour(xi,yi,zi,con_levels,linewidths=3,colors="k", levels=levels)
+
+# dir1 = "/home/s1/annis/daedalean/desgw-map/records/"; dir2="/home/s1/annis/daedalean/gw/failedSN/"; import hp2np
+# skymap = "/data/des41.a/data/desgw/maininjector_devel/real-triggers/G184098/G184098_bayestar.fits"
+# ra,dec,vals=hp2np.hp2np(skymap, fluxConservation=True)
+# ra1,dec1,there1=np.genfromtxt(dir2+"/WR",unpack=True,usecols=(7,8,9),comments="#")
+# ra2,dec2 = np.genfromtxt(dir2+"neugent-red",unpack=True,usecols=(0,1),comments="#")
+# ra2a,dec2a = np.genfromtxt(dir2+"neugent-yellow",unpack=True,usecols=(0,1),comments="#")
+# ra2 = np.append(ra2,ra2a); dec2=np.append(dec2,dec2a)
+# rah,dech,exp,enum=np.genfromtxt(dir1+"G184098.observed",unpack=True,comments="#", usecols=(1,2,3,0))
+# band = np.genfromtxt(dir1+"G184098.observed",unpack=True,comments="#", usecols=(4),dtype=str)
+# lmc1=(exp< 45)&(band=="i")&(enum < 476353)
+# lmc2=(exp< 45)&(band=="i")&(enum > 476353) & (enum %2 ==0) ;# even
+# rah2=rah[lmc2]; dech2=dech[lmc2]
+# rah1=rah[lmc1]; dech1=dech[lmc1]
+# import find; ix2=find.remove(ra2,dec2,ra2); ix1=there1<1
+# reload(getHexObservations); getHexObservations.special(figure,ra,dec,vals,ra1,dec1,ix1,ra2,dec2,ix2,rah1,dech1,rah2,dech2,decMin=-76,decMax=-62,raMin=67,raMax=92);plt.savefig("special.pdf")
+#
+#
+#   the ligo in blue, lmc hexes in yellow and red
+def special(figure, ra, dec, vals, ra1,dec1, ix1, ra2,dec2,ix2,\
+        rah1,dech1, rah2,dech2, \
+        raMin=70.,raMax=90.,decMin=-75, decMax=-60., alpha=-80., gs=15) :
+    from equalArea import mcbryde
+    import matplotlib.pyplot as plt
+    v1 = np.array([raMin, raMax, raMax, raMin, raMin]); 
+    v2 = np.array([decMin, decMin, decMax, decMax, decMin])
+    x,y = mcbryde.mcbryde(v1, v2, alpha=alpha);
+    xmin = x.min(); xmax = x.max();ymin = y.min(); ymax= y.max()
+    x,y=mcbryde.mcbryde(ra,dec,alpha=alpha); 
+    ix=(x>xmin)&(x<=xmax)&(y>ymin)&(y<=ymax)
+    plt.clf(); 
+    plt.axes().set_aspect('equal')
+    plt.axes().set_frame_on(False);
+    plt.axes().set_xticks([]);
+    plt.axes().set_yticks([])
+    plt.hexbin(x[ix],y[ix],vals[ix],cmap="YlGnBu_r",gridsize=gs);
+    #plt.colorbar()
+    ax = figure.add_subplot(1,1,1); 
+    plotDecamHexen(ax,rah1,dech1,alpha,color="orange",lw=1.3); 
+    plotDecamHexen(ax,rah2,dech2,alpha,color="orange",lw=1.3); 
+    plt.scatter(*(mcbryde.mcbryde(ra2,dec2,alpha=alpha)),c="yellow");
+    plt.scatter(*(mcbryde.mcbryde(ra1,dec1,alpha=alpha)),c="green"); 
+    plt.scatter(*(mcbryde.mcbryde(ra2[ix2],dec2[ix2],alpha=alpha)),c="red");
+    plt.scatter(*(mcbryde.mcbryde(ra1[ix1],dec1[ix1],alpha=alpha)),c="red"); 
+    #plt.xlim(-6,6);plt.ylim(-118,-110)
+    delx=0.05*(xmax-xmin)
+    dely=0.05*(ymax-ymin)
+    plt.xlim(xmin+delx,xmax-delx);plt.ylim(ymin+dely,ymax-dely)
+    plt.xlabel("RA");plt.ylabel("Dec")
+    plt.title("LMC Supergiants and WR Stars on LIGO Map")
+    # plt.show()
+

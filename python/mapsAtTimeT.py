@@ -136,12 +136,21 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
 #   and hexalate
 #   then save the maps
 #       times,probabilities are the output of manyDaysOfTotalProbability
+#
+# a onlyHexesAlreadyDone can point at a file that contains
+# ra,decs that are already done, and these will replace the
+# all sky hexes
+# 
 def probabilityMapSaver (obs, sim, mjd, distance, models, \
-        times, probabilities, data_dir) :
+        times, probabilities, data_dir, 
+        onlyHexesAlreadyDone="", performHexalatationCalculation=True) :
     import hexalate
     import os
     gw_data_dir          = os.environ["DESGW_DATA_DIR"]
-    hexFile = gw_data_dir + "all-sky-hexCenters.txt"
+    # one reads the tiling 9 hex centers as that is our default position
+    hexFile = gw_data_dir + "all-sky-hexCenters-tiling9.txt"
+    if onlyHexesAlreadyDone != "" :
+        hexFile = onlyHexesAlreadyDone
 
     counter = -1
     for time,prob  in zip(times, probabilities) :
@@ -153,9 +162,6 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         print "hours since Time Zero: {:.1f}".format(time*24.)
         obs,sm = probabilityMaps( obs, mjd, time, distance, models)
 
-        raHexen, decHexen, hexVals, rank = hexalate.cutAndHexalate (
-            obs, sm, hexFile)
-
         # obs.ra, obs.dec, obs.map  = ligo map
         # obs.hx, obs.hy   = mcbryde projection of houar angle, dec
         # obs.maglim = limiting mag
@@ -163,6 +169,7 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         # sm.probMap = total prob map
         # hexRa,hexDec,hexVals
         nameStem = data_dir + str(sim) + "-{}".format(str(counter)) 
+        print "\t Writing files as {}".format(nameStem)
 
         name = nameStem + "-ra.hp"
         if os.path.exists(name): os.remove(name)
@@ -201,13 +208,18 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         if os.path.exists(name): os.remove(name)
         hp.write_map(name, sm.probMap)
 
-        # where rank is to be understood as the indicies of the
-        # ranked hexes in order; i.e., they have nothing to do with
-        # raHexen, decHexen, hexVals except as a sorting key
-        name = nameStem + "-hexVals.txt"
-        if os.path.exists(name): os.remove(name)
-        data = np.array([raHexen, decHexen, hexVals, rank, (rank*0)+(mjd+time)])
-        np.savetxt(name,data.T,"%.6f, %.5f, %.4e, %d, %.4f")
+        if performHexalatationCalculation :
+            raHexen, decHexen, hexVals, rank = hexalate.cutAndHexalate (
+                obs, sm, hexFile)
+
+            # where rank is to be understood as the indicies of the
+            # ranked hexes in order; i.e., they have nothing to do with
+            # raHexen, decHexen, hexVals except as a sorting key
+            name = nameStem + "-hexVals.txt"
+            if os.path.exists(name): os.remove(name)
+            data = np.array([raHexen, decHexen, hexVals, 
+                rank, (rank*0)+(mjd+time)])
+            np.savetxt(name,data.T,"%.6f, %.5f, %.4e, %d, %.4f")
 
     
 

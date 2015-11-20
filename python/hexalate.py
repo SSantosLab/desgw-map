@@ -79,6 +79,7 @@ def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
     return raHexen, decHexen, hexVals, rank
 
 def getHexCenters (allskyDesHexes = "../data/all-sky-hexCenters.txt") :
-    ra,dec = np.genfromtxt(allskyDesHexes, unpack=True)
+    ra,dec = np.genfromtxt(allskyDesHexes, unpack=True, \
+        usecols=(0,1),comments="#")
     return ra,dec
 
