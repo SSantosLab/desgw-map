@@ -57,7 +57,7 @@ import jsonMaker
 #   else at start_mjd
 #
 def prepare(skymap, burst_mjd, trigger_id, data_dir,
-        distance=60., exposure_list = [90,], filter_list=["i",]
+        distance=60., exposure_list = [90,], filter_list=["i",],
         overhead=30., maxHexesPerSlot=6,
         start_mjd = 0, skipHexelate=False, skipAll=False, 
         onlyHexesAlreadyDone="", 
