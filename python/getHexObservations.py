@@ -57,9 +57,9 @@ import jsonMaker
 #   else at start_mjd
 #
 def prepare(skymap, burst_mjd, trigger_id, data_dir,
-        distance=60., exposure_length=90., 
-        deltaTime = 0.0208, start_mjd = 0,
-        skipHexelate=False, skipAll=False, 
+        distance=60., exposure_list = [90,], filter_list=["i",]
+        overhead=30., maxHexesPerSlot=6,
+        start_mjd = 0, skipHexelate=False, skipAll=False, 
         onlyHexesAlreadyDone="", 
         saveHexalationMap=True, doOnlyMaxProbability=False) :
     import mapsAtTimeT
@@ -70,6 +70,17 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
     debug = 0
     if start_mjd == 0: start_mjd = burst_mjd
 
+    exposure_list = np.array(exposure_list)
+    filter_list = np.array(filter_list)
+    ix = filter_list == "i"
+    exposure_length = exposure_list[ix].sum()
+
+    answers = slotCalculations( burst_mjd, exposure_lengths, overhead, 
+        nHexes=maxHexesPerSlot) 
+    hoursPerNight = answers["hoursPerNight"] ;# in minutes
+    slotDuration = answers["slotDuration"] ;# in minutes
+    deltaTime = slotDuration/(60.*24.) ;# in days
+
     probabilityTimesCache = data_dir + \
         "/probabilityTimesCache_"+str(trigger_id)+".txt"
     if skipAll :
@@ -77,7 +88,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
         print "prepare: using cached probabilities, times, and maps"
         print "\t reading ",probabilityTimesCache
         probs, times = np.genfromtxt(probabilityTimesCache, unpack=True)
-        return probs, times
+        return probs, times, slotDuration
         
     # ==== get the neutron star explosion models
     models = modelRead.getModels()
@@ -95,7 +106,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
         probTimeFile= probabilityTimesCache )
     if skipHexelate:
         print "=============>>>> prepare: using cached maps"
-        return probs, times
+        return probs, times, slotDuration
     if debug :
         return  obs, trigger_id, mjd, distance, models, times, probs,data_dir
     if doOnlyMaxProbability :
@@ -108,25 +119,23 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
         distance, models, times, probs,data_dir, \
         onlyHexesAlreadyDone=onlyHexesAlreadyDone, 
         performHexalatationCalculation=saveHexalationMap)
-    return probs, times
+    return probs, times, slotDuration, hoursPerNight
 
 # ========== do simple calculations on how to divide the night
 #
 #   one of the questions is how many hours to devote to observations
-#       hoursAvailable
-#   another is the slot duration
-#       slotDuration = 32.  minutes for 4 hexes per slot of izzi 
-#       slotDuration = 64.  minutes for 8 hexes per slot izzi 
-#       slotDuration = 60.  minutes for 6 hexes per slot izz
-#       slotDuration = 30.  minutes for 3 hexes per slot izz
+#       hoursAvailable,  another is the slot duration
 #
 # if the 1% cut isn't in place in mapsAtTimeT.oneDayOfTotalProbability
 # then one expects circa 40-45 maps as there is about 2/hour
 #   with the 1% cut, then one expects far fewer. Perhaps zero.
 #
 def contemplateTheDivisionsOfTime(
-        probs, times, 
-        hoursAvailable=6, slotDuration=30.) :
+        probs, times, slotDuration=30., 
+            hoursPerNight= 10., hoursAvailable=6) :
+    if hoursAvailable > hoursPerNight:
+        hoursAvailable = hoursPerNight
+        
     # if the number of slots is zero, nothing to observe or plot
     if np.size(times) == 0 : return 0,0
     if probs.sum() < 1e-9 : return 0,0
@@ -153,10 +162,6 @@ def contemplateTheDivisionsOfTime(
 #
 # Another fast routine
 #   basic for this routine is how many hexes per slot
-#       maxHexesPerSlot =  4 # for 32 minute slots izzi
-#       maxHexesPerSlot =  8 # for 64 minute slots izzi
-#       maxHexesPerSlot = 10 # for 60 minute slots izz
-#       maxHexesPerSlot =  5 # for 30 minute slots izz
 #
 #   skipJson does just that, speeding the routine up considerably
 #
@@ -195,9 +200,10 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
 #   area_left is th enumber of hexes we have left to observe this season
 #   T_left is the number of days left in the season
 #   rate is the effective rate of triggers
+#       p_gw is that for which the table cumul_table_pgw50.txt was  made.
 #
-def economics (simNumber, best_slot, mapDirectory, p_gw = 0.50, 
-        area_left=200., T_left=60., rate=1/30.) :
+def economics (simNumber, best_slot, mapDirectory, 
+        area_left=200., T_left=60., rate=1/30.,  p_gw = 0.50) :
     import healpy as hp
     import cumul
     import des_optimization
@@ -318,11 +324,54 @@ def readMaps(data_dir, simNumber, slot) :
 # support routines
 # 
 #========================================================================
+# for economics analysis
+def time_cost_per_hex (nvisits, overhead, exposure_length) :
+    tot_exptime = (np.array(overhead)+np.array(exposure_length)).sum
+    time_cost_per_hex = nvisits * tot_exptime #sec
+    return time_cost_per_hex
+    
+# for economics analysis
+def area_left (area_per_hex, time_budget, time_cost_per_hex) :
+    area_per_hex * (time_budget * 3600)/(time_cost_per_hex)
+    return area_per_hex
+#time_cost_per_hex = nvisits * nexposures * (overhead + exposure_length) #sec
+#area_left =  area_per_hex * (time_budget * 3600)/(time_cost_per_hex)
+
+# place holder for the code brought from desisurvey...
+def hoursPerNight (mjd) :
+    return 10.
+
+
+# These calculations used to be spread over hither and yon.
+# Bring them together.
+#
+#    deltaTime = 0.0223  => 32 minute slots  for izzi 90sec exp, 4 hex/slot
+#    deltaTime = 0.0446  => 62 minute slots  for izzi 90sec exp, 8 hex/slot
+#    deltaTime = 0.0417  => 60 minute slots  for izz 90sec exp, 10 hex/slot
+#    deltaTime = 0.0208  => 30 minute slots  for izz 90sec exp,  5 hex/slot
+#       The first is flexible to observing conditions,
+#       while the second is x2 faster as there are less maps to hexalate
+#       The third shows a different tiling/filter complement
+
+# Let us redfine this: a slot is the length of time it takes
+# to do 6 hexes to completion. That is usually somewhere between 30 minutes
+# and one hour, so close to the original defintion, and by force is an
+# even number of hexes. Ok. Use n=6 for the forcing definition
+def slotCalculations(mjd, exposure_lengths, overhead, nHexes = 6) :
+    tot_exptime = (np.array(overhead)+np.array(exposure_length)).sum
+    slot_time = tot_exptime*nHexes
+    slot_duration = slot_time/60. ;# in minutes
+    hoursAvailable = hoursPerNight(mjd)
+    answers = dict()
+    answers["slotDuration"] = slotDuration
+    answers["hoursPerNight"] = hoursAvailable
+    return answers
 
 def eventName(data_dir, event) :
     name=data_dir+str(event)
     return name
 
+# find the number of slots per night
 def findNSlots(hoursAvailable, slotDuration=32.) :
     verbose = 0
     if verbose:
