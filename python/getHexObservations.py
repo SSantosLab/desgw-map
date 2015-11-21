@@ -75,7 +75,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
     ix = filter_list == "i"
     exposure_length = exposure_list[ix].sum()
 
-    answers = slotCalculations( burst_mjd, exposure_lengths, overhead, 
+    answers = slotCalculations( burst_mjd, exposure_list, overhead, 
         nHexes=maxHexesPerSlot) 
     hoursPerNight = answers["hoursPerNight"] ;# in minutes
     slotDuration = answers["slotDuration"] ;# in minutes
