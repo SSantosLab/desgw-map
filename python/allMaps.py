@@ -111,122 +111,115 @@ def vidiHYC2 (do2015=True, thresh=0.50, outfile="") :
     np.savetxt(outfile, data, "%d %f %.5f %.1f")  
 
 #==== Big routine # 2: find the probabilities over 10 days
+def mainInjector (trigger_id, skymap, mjd, distance, \
+        outputDir, recycler_mjd=57350.0) :
+
+    import os
+    import yaml
+    import getHexObservations
+    with open("maininjector.yaml","r") as f:
+        config = yaml.safe_load(f); 
+
+    exposure_length = config["exposure_length"]
+    filter_list     = config["exposure_filter"]
+    overhead        = config["overhead"]
+    maxHexesPerSlot = config["maxHexesPerSlot"]
+    hoursAvailable  = config["time_budget"]
+    maxHexesPerSlot = config["maxHexesPerSlot"]
+    nvisits         = config["nvisits"]
+    area_per_hex    = config["area_per_hex"]
+    start_of_season = config["start_of_season"]
+    end_of_season   = config["end_of_season"]
+    events_observed = config["events_observed"]
+    exposure_length = np.array(exposure_length)
+    
+    if not os.path.exists(outputDir):
+        os.makedirs(outputDir)
+
+    # make the maps
+    probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
+        skymap, mjd, trigger_id, outputDir, distance=distance,
+        exposure_list=exposure_length, filter_list=filter_list,
+        overhead=overhead, maxHexesPerSlot=maxHexesPerSlot)
+                
+    # figure out how to divide the night
+    n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
+        probs, times, hoursPerNight=hoursPerNight,
+        hoursAvailable=hoursAvailable)
+
+    # compute the best observations
+    best_slot = getHexObservations.now( 
+        n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
+        maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
+        exposure_list=exposure_length, filter_list=filter_list, skipJson =True)
+
+    if n_slots > 0 :
+#   area_left is th enumber of hexes we have left to observe this season
+#   T_left is the number of days left in the season
+#   rate is the effective rate of triggers
+#
+        time_cost_per_hex = nvisits * np.sum(overhead + exposure_length) #sec 
+        area_left =  area_per_hex * (hoursAvailable * 3600)/(time_cost_per_hex)
+        time_left = end_of_season - start_of_season
+        rate = len(events_observed)/(recycler_mjd-start_of_season)
+
+        # do Hsun-yu Chen's 
+        econ_prob, econ_area = getHexObservations.economics (trigger_id, 
+            best_slot, mapDirectory=outputDir, 
+            area_left=area_left, T_left=time_left, rate=rate) 
+
+        hoursOnTarget = (econ_area/area_per_hex ) * (time_cost_per_hex/3600.)
+
+        # figure out how to divide the night, 
+        # given the new advice on how much time to spend
+
+        n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
+            probs, times, hoursPerNight=hoursPerNight,
+            hoursAvailable=hoursOnTarget)
+
+        best_slot = getHexObservations.now( 
+            n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
+            maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
+            exposure_list=exposure_length, filter_list=filter_list, 
+            skipJson =False)
+    else :
+        econ_prob = 0
+        econ_area = 0
+
+    # make observation plots
+    n_plots = getHexObservations.makeObservingPlots(
+        n_slots, trigger_id, best_slot, outputDir)
+
+    return best_slot, n_slots, first_slot, econ_prob, econ_area
+
+
+#==== Big routine # 2: find the probabilities over 10 days
 #
 #  For each sim build the  mags.observed object
-#  Then run mapsAtTimeT.manyDaysOfTotalProbability
-#  Then run maximumProbabilityPerDay
-#  Save the resulting stuff
-#  Then run mapsAtTimeT.probabilityMapSaver
-#       the hex values and rank are written to a file
+#
+#   sims, mjds, distances, models=allMaps.veni()
+#   allMaps.vidi(sims, mjds, distances, models)
 #
 def vidi(sims, mjds, distances, models, do2015=True) :
     import os.path
     if do2015:
         data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
         odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2015-out/"
     else :
         data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
         odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2016-out/"
     file = "bayestar-{:d}.fits.gz"
     for sim, mjd, distance in zip(sims,mjds,distances) :
         simfile = file.format(sim)
         print "sim, distance: ", sim, distance
-        name = maxtimeFilename(sim, odata_dir)
+        simfile = data_dir + simfile
+        outdir = odata_dir + str(sim) + "/"
+        name = outdir + str(sim)+"-probabilityPlot.png"
         if os.path.exists(name) : continue
 
-        simfile = data_dir+simfile
-        ligo = hp.read_map(simfile)
-        ra,dec,ligo = hp2np.map2np(ligo, resolution=32)
-        obs = mags.observed(ra,dec,ligo, mjd); 
-
-        totalProbs, times  = mapsAtTimeT.manyDaysOfTotalProbability(
-            obs, mjd, distance, models)
-        maxtimes, maxprobs = maximumProbabilityPerDay(totalProbs, times)
-        print "maxtimes= ",maxtimes
-        print "maxprobs= ",maxprobs
-        saven2 (maxtimes, maxprobs, sim, odata_dir)
-        # make the small files
-        mapsAtTimeT.probabilityMapSaver (obs, sim, mjd, distance, models, maxtimes, maxprobs, odata_dir)
-
-#==== Big routine # 3:  higher resolution run against output of vidi
-#
-# This does most of what vidi does, except: 
-#       the map is higher resolution,
-#       the maxtimes are read in from a file (as opposed to calculated by maximumProbabilityPerDay)
-#       and only mapsAtTimeT.probabilityMapSaver is run, 
-#           not manyDaysOfTotalProbability and maximumProbabilityPerDay
-#   Presumably the big maps are expensive and can only be run for certain times
-#       the hex values and rank are written to a file
-#
-# make the big files
-def vici(sims, mjds, distances, models, do2015=True) :
-    import os.path
-    import shutil
-    if do2015:
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out/"
-        vdata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out-v/"
-    else :
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out/"
-        vdata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out-v/"
-    file = "bayestar-{:d}.fits.gz"
-    for sim, mjd, distance in zip(sims,mjds,distances) :
-        simfile = file.format(sim)
-        print "sim, distance: ", sim, distance
-
-        new_maxtimeFile = maxtimeFilename(sim, vdata_dir)
-        if os.path.exists(new_maxtimeFile) : continue
-        old_maxtimeFile= maxtimeFilename(sim, odata_dir)
-        shutil.copy(old_maxtimeFile, new_maxtimeFile)
-
-        simfile = data_dir+simfile
-        ligo = hp.read_map(simfile)
-        ra,dec,ligo = hp2np.map2np(ligo, resolution=256)
-        obs = mags.observed(ra,dec,ligo, mjd); 
-
-        maxtimes, maxprobs = np.genfromtxt(new_maxtimeFile, unpack=True)
-        print "maxtimes= ",maxtimes
-        print "maxprobs= ",maxprobs
-        mapsAtTimeT.probabilityMapSaver(obs, sim, mjd, distance, models, maxtimes, maxprobs, vdata_dir)
-
-#==== helper routine around the higher resolution routine of Big routine # 3, collecting meta data?
-#
-# a Jack routine. Not useful therefore?
-# same input as vici,
-#   but just read the sims (not mjd, distance)
-#   and write a file with ra,dec of the maximim likes
-def vjack(sims, do2015=True) :
-    import os.path
-    import shutil
-    if do2015:
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out/"
-        vdata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out-v/"
-        savefile = "check-{}.txt".format("2015")
-    else :
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out/"
-        vdata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out-v/"
-        savefile = "check-{}.txt".format("2016")
-    file = "bayestar-{:d}.fits.gz"
-    raList, decList = [],[]
-    for sim in sims :
-        simfile = file.format(int(sim))
-        print "sim, distance: ", sim
-        simfile = data_dir+simfile
-        ligo = hp.read_map(simfile)
-        ra,dec,ligo = hp2np.hp2np(simfile)
-        max = ligo.max()
-        ix = ligo == max
-        ra = ra[ix]
-        dec = dec[ix]
-        if ra.size > 0 : ra = ra[0]
-        if dec.size > 0 : dec = dec[0]
-        raList.append(ra)
-        decList.append(dec)
-    np.savetxt(savefile, np.array([sims, raList, decList]).T, "%d %.6f %.5f")
-
+        mainInjector (sim, simfile, mjd, distance, outdir)
 
 #  sim,mjd,distance,snr, p0,p1,p2,p3,p4,p5,p6,p7,p8,p9 = np.genfromtxt("all-maxtimes-2015.txt", unpack=True);
 

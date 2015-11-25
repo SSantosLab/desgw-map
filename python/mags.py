@@ -348,3 +348,45 @@ class observed(object):
         ahav = 2*np.arcsin(np.sqrt(x))
         return ahav
 
+def findNightDuration(mjd) :
+    ctio_lat          = -30.16527778
+    ctio_lon          = -70.8125
+    ctio_height       = 2215.
+
+    degToRad = 2.*np.pi/360.
+    lat          = ctio_lat*degToRad
+    lon          = ctio_lon*degToRad
+    height       = ctio_height
+
+    imjd = np.int(mjd)
+    start_mjd = imjd - 6./24.  ;# before sunset at CTIO
+
+    sunset = ""
+    sunrise = ""
+    # check every minute
+    for i in np.arange(0, 1., 1./(24.*60) ) :
+        mjd = start_mjd + i
+        gmst        = slalib.sla_gmst(mjd)
+        eqEquinoxes = slalib.sla_eqeqx(mjd)
+        lst         = gmst + eqEquinoxes + lon
+
+        sunra, sundec, diam = slalib.sla_rdplan(mjd, 0, lon, lat)
+        sunha = lst - sunra
+        sinAltRad = np.sin(lat)*np.sin(sundec) + \
+            np.cos(lat)*np.cos(sundec)*np.cos(sunha)
+        altRad = np.arcsin(sinAltRad)
+        zenithDist = 90*degToRad - altRad
+
+        twilight = 100.*2*np.pi/360. 
+        if zenithDist <= twilight :
+            bright = True
+        else :
+            bright = False
+        if sunset == "" and bright == False :
+            sunset = mjd
+        if sunset != "" and sunrise == "" and bright == True :
+            sunrise = mjd
+    duration = sunrise-sunset
+    return duration
+
+

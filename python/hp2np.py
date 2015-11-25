@@ -54,11 +54,11 @@ def map2np (hp_map, resolution=False, fluxConservation=False) :
     ix = range(0,hp_map.size)
     # pix2and wants the indicies numbers of the pixel to get the coord of
     theta,phi = hp.pix2ang(nside,ix)
-    theta = theta*360./2./np.pi; phi = phi*360./2./np.pi
+    theta = theta*360./2./np.pi; 
+    phi = phi*360./2./np.pi
     ra = phi
-    #ra = -1*phi+180; 
-    ixra=np.nonzero(ra > 180); ra[ixra]=ra[ixra]-360.
     dec = 90-theta
+    ix=np.nonzero(ra > 180); ra[ix]=ra[ix]-360.
     return ra,dec,hp_map
 
 #

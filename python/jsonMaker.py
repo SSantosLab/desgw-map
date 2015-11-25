@@ -117,8 +117,9 @@ def tileOffsets() :
 # Therefore, all of the offsets in this routine
 # should be made relative to tiling 9's offset
     for i in [0,1,2,3,4,5,6,7,8,10,11,17,18,19, 9] :
-        offsets[i][0] = offsets[9][0]
-        offsets[i][1] = offsets[9][1]
+        ra =offsets[i][0]-offsets[9][0]
+        dec = offsets[i][1]-offsets[9][1]
+        offsets[i] = (ra,dec)
     return offsets
 
 

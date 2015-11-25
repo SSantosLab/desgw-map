@@ -174,8 +174,8 @@ def contemplateTheDivisionsOfTime(
 #
 def now(n_slots, mapDirectory="jack/", simNumber=13681, 
         mapZero=0, maxHexesPerSlot=5, 
-        doneFile = "",
-        skipJson = False ) :
+        exposure_list = [90,90,90], filter_list=["i","z","z"],
+        doneFile = "", skipJson = False ) :
     # if the number of slots is zero, nothing to observe or plot
     if n_slots == 0: 
         return 0,0,0
@@ -191,7 +191,9 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
     maxProb_slot = maxProbabilitySlot(prob,slotNumbers)
     if not skipJson :
         turnObservingRecordIntoJSONs(
-            ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) 
+            ra,dec,prob,mjd,slotNumbers, simNumber, 
+            exposure_list=exposure_list, filter_list=filter_list, 
+            mapDirectory=mapDirectory) 
 
     return maxProb_slot
 
@@ -339,7 +341,10 @@ def area_left (area_per_hex, time_budget, time_cost_per_hex) :
 
 # place holder for the code brought from desisurvey...
 def hoursPerNight (mjd) :
-    return 10.
+    import mags
+    night = mags.findNightDuration(mjd)
+    night = night*24.
+    return night
 
 
 # These calculations used to be spread over hither and yon.
@@ -358,12 +363,12 @@ def hoursPerNight (mjd) :
 # and one hour, so close to the original defintion, and by force is an
 # even number of hexes. Ok. Use n=6 for the forcing definition
 def slotCalculations(mjd, exposure_lengths, overhead, nHexes = 6) :
-    tot_exptime = (np.array(overhead)+np.array(exposure_length)).sum
+    tot_exptime = (np.array(overhead)+np.array(exposure_lengths)).sum()
     slot_time = tot_exptime*nHexes
     slot_duration = slot_time/60. ;# in minutes
     hoursAvailable = hoursPerNight(mjd)
     answers = dict()
-    answers["slotDuration"] = slotDuration
+    answers["slotDuration"] = slot_duration
     answers["hoursPerNight"] = hoursAvailable
     return answers
 
@@ -731,7 +736,8 @@ def eliminateFullObservingSlots(
 
 
 def turnObservingRecordIntoJSONs(
-        ra,dec,prob,mjd,slotNumbers, simNumber, mapDirectory) :
+        ra,dec,prob,mjd,slotNumbers, simNumber, 
+        exposure_list, filter_list, mapDirectory) :
     seqtot =  ra.size
     seqzero = 0
 
@@ -741,7 +747,9 @@ def turnObservingRecordIntoJSONs(
         slotMJD = mjd[ix][0]  ;# just get first mjd in this slot
         tmpname, name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
         jsonMaker.writeJson(ra[ix],dec[ix], 
-            simNumber, seqzero, seqtot, jsonFilename=tmpname)
+            simNumber, seqzero, seqtot, exposureList= exposure_list, 
+            filterList= filter_list, jsonFilename=tmpname)
+
         desJson(tmpname, name, mapDirectory) 
         seqzero =+ ra[ix].size
         
