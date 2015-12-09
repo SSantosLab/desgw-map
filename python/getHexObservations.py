@@ -1,5 +1,6 @@
 import numpy as np
 import jsonMaker
+import os
 #
 #       the routine mapsAtTimeT.oneDayOfTotalProbability
 #           breaks the night into slots of 32 minutes duration
@@ -56,7 +57,7 @@ import jsonMaker
 #   if start_mjd =0, then the computations start at the burst_mjd,
 #   else at start_mjd
 #
-def prepare(skymap, burst_mjd, trigger_id, data_dir,
+def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
         distance=60., exposure_list = [90,], filter_list=["i",],
         overhead=30., maxHexesPerSlot=6,
         start_mjd = 0, skipHexelate=False, skipAll=False, 
@@ -82,8 +83,8 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
     slotDuration = answers["slotDuration"] ;# in minutes
     deltaTime = slotDuration/(60.*24.) ;# in days
 
-    probabilityTimesCache = data_dir + \
-        "/probabilityTimesCache_"+str(trigger_id)+".txt"
+    probabilityTimesCache = os.path.join(data_dir,\
+        "probabilityTimesCache_"+str(trigger_id)+".txt")
     if skipAll :
         print "=============>>>> ",
         print "prepare: using cached probabilities, times, and maps"
@@ -94,6 +95,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
         else :
             data = np.genfromtxt(probabilityTimesCache, unpack=True)
             probs, times = data[0],data[1]
+        probs, times = np.genfromtxt(probabilityTimesCache, unpack=True)
         return probs, times, slotDuration, hoursPerNight
         
     # ==== get the neutron star explosion models
@@ -122,7 +124,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
         times = [times[ix],]
 
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, burst_mjd, \
-        distance, models, times, probs,data_dir, \
+        distance, models, times, probs,mapDir, \
         onlyHexesAlreadyDone=onlyHexesAlreadyDone, 
         performHexalatationCalculation=saveHexalationMap)
     return probs, times, slotDuration, hoursPerNight
@@ -251,9 +253,9 @@ def economics (simNumber, best_slot, mapDirectory,
 #
 # ====== there are possibilities. Show them.
 #
-def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
+def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
-    print "makeObservingPlots(",nslots, simNumber, best_slot,mapDirectory," )"
+    print "makeObservingPlots(",nslots, simNumber, best_slot,data_dir," )"
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     import matplotlib
     matplotlib.use("Agg"); # matplotlib.use("TkAgg") ??
@@ -267,7 +269,7 @@ def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
     ra,dec,prob,slotMjd,slotNumbers = readObservingRecord(
         simNumber, mapDirectory)
 
-    probabilityPlot(figure, prob, slotNumbers, simNumber, mapDirectory) 
+    probabilityPlot(figure, prob, slotNumbers, simNumber, data_dir) 
 
     # now make the hex observation plots
     counter = 1   ;# already made one
@@ -279,13 +281,13 @@ def makeObservingPlots(nslots, simNumber, best_slot, mapDirectory) :
             ix = np.nonzero(slotNumbers == i)
             obsTime = slotMjd[ix[0]].mean()
             print "making observingPlot-{}.png".format(i)
-            observingPlot(figure,simNumber,i,mapDirectory,nslots,
+            observingPlot(figure,simNumber,i,mapDirectory, nslots,
                 extraTitle=obsTime)
             name = str(simNumber)+"-observingPlot-{}.png".format(i)
-            plt.savefig(mapDirectory+name)
+            plt.savefig(os.path.join(mapDirectory,name))
             counter += 1
 
-    counter+= equalAreaPlot(figure,best_slot,simNumber,mapDirectory)
+    counter+= equalAreaPlot(figure,best_slot,simNumber,data_dir,mapDirectory)
 
     # return the number of plots made
     return counter
@@ -311,10 +313,10 @@ def nothingToObserveShowSomething(skymap, mjd, exposure_length) :
 #
 #   raMap, decMap, ligoMap, maglimMap, probMap, haMap, xMap,yMap, hxMap,hyMap = readMaps(
 #   ra, dec, ligo, maglim, prob, ha, x,y, hx,hy = readMaps(
-def readMaps(data_dir, simNumber, slot) :
+def readMaps(mapDir, simNumber, slot) :
     import healpy as hp
     # get the maps for a reasonable slot
-    name = eventName(data_dir, str(simNumber)) + "-"+str(slot)
+    name = os.path.join(mapDir, str(simNumber) + "-"+str(slot))
     print "\t reading ",name+"-ra.hp  & etc"
     raMap     =hp.read_map(name+"-ra.hp", verbose=False);
     decMap    =hp.read_map(name+"-dec.hp", verbose=False);
@@ -383,10 +385,11 @@ def slotCalculations(mjd, exposure_lengths, overhead, nHexes = 6) :
     answers["hoursPerNight"] = hoursAvailable
     return answers
 
-def eventName(data_dir, event) :
-    name=data_dir+str(event)
+#SHOULD NOT BE NEEDED ANYMORE - DILLON DEC 7TH
+'''def eventName(data_dir, event) :
+    name=os.path.join(data_dir,str(event))
     return name
-
+'''
 # find the number of slots per night
 def findNSlots(hoursAvailable, slotDuration=32.) :
     verbose = 0
@@ -568,7 +571,7 @@ def observingStats( slotsObserving, outfile="") :
     return ra,dec,prob,mjd,slotNum,islot
 
 def observingRecord(slotsObserving, simNumber, data_dir) :
-    name = eventName(data_dir, str(simNumber)) + "-ra-dec-prob-mjd-slot.txt"
+    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-prob-mjd-slot.txt")
     ra,dec,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
     data = np.array([ra, dec, prob, mjd, slotNum]).T
     np.savetxt(name, data, "%.6f %.5f %.6f %.4f %d")
@@ -577,11 +580,11 @@ def observingRecord(slotsObserving, simNumber, data_dir) :
 #     ra,dec,prob,mjd,slotNum,islot = readObservingRecord(simNumber, data_dir)
 def readObservingRecord(simNumber, data_dir) :
     import os
-    name = eventName(data_dir, str(simNumber)) + "-ra-dec-prob-mjd-slot.txt"
+    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-prob-mjd-slot.txt")
     if not os.path.exists(name) :
         ra,dec,prob,mjd,slotNum = \
             np.array(0),np.array(0),np.array(0), \
-            np.array(0)
+            np.array(0),np.array(0)
     else :
         ra,dec,prob,mjd,slotNum = np.genfromtxt(name,unpack=True)
     return ra,dec,prob,mjd,slotNum
@@ -609,7 +612,7 @@ def slotsObservingToNpArrays(slotsObserving) :
 # Read in all of the hexalated probability files
 #
 def loadHexalatedProbabilities(sim, slot, data_dir) :
-    nameStem = eventName(data_dir, str(sim)) + "-{}".format(str(slot)) 
+    nameStem = os.path.join(data_dir, str(sim) + "-{}".format(str(slot)))
     name = nameStem + "-hexVals.txt"
     raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, delimiter=",")
     slots = np.ones(raHexen.size)*slot
@@ -810,8 +813,8 @@ def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
     return tmpname, name
 def jsonName (slot, utcString, simNumber, mapDirectory) :
     slot = "-{}-".format(np.int(slot))
-    tmpname = eventName(mapDirectory, str(simNumber)) + slot + utcString + "-tmp.json"
-    name = eventName(mapDirectory, str(simNumber)) + slot + utcString + ".json"
+    tmpname = os.path.join(mapDirectory, str(simNumber) + slot + utcString + "-tmp.json")
+    name = os.path.join(mapDirectory, str(simNumber) + slot + utcString + ".json")
     return tmpname, name
 
 def jsonFromRaDecFile(radecfile, nslots, slotZero, 
@@ -880,16 +883,16 @@ def probabilityPlot(figure, prob, slotNumbers, simNumber, data_dir) :
     plt.ylabel("probability per slot (%)")
     plt.title("sum(prob*ligo)")
     name = str(simNumber)+"-probabilityPlot.png"
-    plt.savefig(data_dir+name)
+    plt.savefig(os.path.join(data_dir,name))
 
-def equalAreaPlot(figure,slot,simNumber,data_dir) :
+def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) :
     import matplotlib.pyplot as plt
     from equalArea import mcplot
     from equalArea import mcbryde
     import insideDesFootprint
 
     ra, dec, ligo, maglim, prob, ha, x,y, hx,hy = \
-        readMaps(data_dir, simNumber, slot)
+        readMaps(mapDir, simNumber, slot)
     # x,y are the mcbryde projection of ra, dec
     # hx,hy are the mcbryde projection of ha, dec
     ra, dec = x, y
@@ -900,28 +903,28 @@ def equalAreaPlot(figure,slot,simNumber,data_dir) :
 
     plt.axes().set_aspect('equal')
 
-    name = data_dir+str(simNumber)+"-"+str(slot)+"-ligo-eq.png"
+    name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-ligo-eq.png")
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,ligo)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
-    name = data_dir+str(simNumber)+"-"+str(slot)+"-maglim-eq.png"
+    name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-maglim-eq.png")
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,maglim,vmin=17);
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
-    name = data_dir+str(simNumber)+"-"+str(slot)+"-prob-eq.png"
+    name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-prob-eq.png")
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,prob)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
     plt.savefig(name)
 
-    name = data_dir+str(simNumber)+"-"+str(slot)+"-probXligo-eq.png"
+    name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-probXligo-eq.png")
     print "making ",name
     plt.clf();mcplot.plot(ra,dec,prob*ligo)
     plt.plot(desx,desy,color="w")
