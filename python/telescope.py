@@ -77,7 +77,7 @@ def blancoHorizonLimits () :
 #        tel_dir           = data_dir
 #        tel_file          = "blanco-limits-ha-dec.fits"
 #        ha,dec,ttlim      = telescope.loadLimits(tel_dir, tel_file)
-def loadLimits(dir = "/home/s1/annis/daedalean/gw/python/",
+def loadLimits(dir = "/home/s1/annis/daedalean/desgw-map/data/",
         file = "blanco-limits-ha-dec.fits") :
     print "\t loading telescope limits ",dir+file
     import pyfits
@@ -90,19 +90,6 @@ def loadLimits(dir = "/home/s1/annis/daedalean/gw/python/",
     transmission[ix] = 0.0
 
     return ha, dec, transmission
-
-def limitsToHealpix(ha, dec) :
-    blancoHA, blancoDec = blancoLimits()
-    poly = zip(blancoHA, blancoDec)
-
-    transmission = []
-    for i in range(ha.size) :
-        if point_in_poly(ha[i], dec[i], poly) :
-            transmission.append(1.0)
-        else :
-            transmission.append(10.0**-100.)
-    transmission = np.array(transmission)
-    return transmission
 
 def findLimits (ha, dec, tree, trans) :
     coords = zip(ha,dec)
@@ -137,3 +124,4 @@ def tree (ha, dec) :
     coords = zip(ha,dec)
     tree = cKDTree(coords)
     return tree
+

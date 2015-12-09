@@ -7,10 +7,14 @@
 #
 import healpy as hp
 import numpy as np
-def area(ra,dec,vals, threshold, nside) :
+# 11734 is the total area viewable by blanco at any given instant
+def area(ra,dec,vals, threshold, nside, max_area=11734.) :
     npix = contour_sum(ra,dec,vals,threshold)
-    area_per_pixel = hp.nside2pixarea(nside)*((360./2/np.pi)**2)
-    area = npix*area_per_pixel
+    if npix == ra.size :
+        area = max_area
+    else :
+        area_per_pixel = hp.nside2pixarea(nside)*((360./2/np.pi)**2)
+        area = npix*area_per_pixel
     return area
 
 def contour_sum(ra, dec, vals, threshold) :
@@ -22,7 +26,9 @@ def contour_sum(ra, dec, vals, threshold) :
     cumulative = 0
     i = 0
     if vals.sum() < threshold :
-        print "contour_sim: vals.sum() < threshold, npix set to max. sum= ", vals.sum()
+        print "\t contour_sim: ",
+        print " npix set to max as sum < threshold, ",
+        print "{:.2f}<{:.2f} ".format(vals.sum(),threshold)
         npixels = ra.size
     else :
         while cumulative < threshold :

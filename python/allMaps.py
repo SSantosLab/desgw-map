@@ -110,9 +110,51 @@ def vidiHYC2 (do2015=True, thresh=0.50, outfile="") :
     data = np.array([sims, probs, times, areas]).T
     np.savetxt(outfile, data, "%d %f %.5f %.1f")  
 
+
 #==== Big routine # 2: find the probabilities over 10 days
+#
+#  For each sim build the  mags.observed object
+#
+#   sims, mjds, distances, models=allMaps.veni()
+#   allMaps.vidi(sims, mjds, distances, models)
+#
+def vidi(sims, mjds, distances, models, do2015=True, quick=True) :
+    import os.path
+    if do2015:
+        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out/"
+        #odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2015-out/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/nsims-2015-out/"
+    else :
+        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out/"
+        #odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2016-out/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/nsims-2016-out/"
+    file = "bayestar-{:d}.fits.gz"
+    outfile = odata_dir + "mainInjector-sim-mjd-dist-bslot-nslot-econ_prob-econ_area_quality.txt"
+    fd = open(outfile,"w"); fd.close()
+    counter = 0
+    for sim, mjd, distance in zip(sims,mjds,distances) :
+        simfile = file.format(sim)
+        print "sim, distance: ", sim, distance
+        simfile = data_dir + simfile
+        outdir = odata_dir + str(sim) + "/"
+        name = outdir + str(sim)+"-probabilityPlot.png"
+        if not quick  and os.path.exists(name) : continue
+
+        best_slot, n_slots, first_slot, \
+            econ_prob, econ_area, area_need, quality = \
+            mainInjector (sim, simfile, mjd, distance, outdir, quick=quick)
+        fd=open(outfile,"a")
+        fd.write("{} {} {} {} {} {} {} {} {}\n".format(sim, mjd, distance, \
+            best_slot, n_slots,  econ_prob, econ_area, area_need,\
+            quality))
+        fd.close()
+        counter += 1
+        #if counter >= 21 : raise Exception("im done here")
+        
 def mainInjector (trigger_id, skymap, mjd, distance, \
-        outputDir, recycler_mjd=57350.0) :
+        outputDir, recycler_mjd=57350.0, quick=False) :
 
     import os
     import yaml
@@ -137,10 +179,15 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
         os.makedirs(outputDir)
 
     # make the maps
+    if quick :
+        skipAll = True
+    else :
+        skipAll = False
     probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
         skymap, mjd, trigger_id, outputDir, distance=distance,
         exposure_list=exposure_length, filter_list=filter_list,
-        overhead=overhead, maxHexesPerSlot=maxHexesPerSlot)
+        overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
+        skipAll=skipAll)
                 
     # figure out how to divide the night
     n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
@@ -164,9 +211,16 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
         rate = len(events_observed)/(recycler_mjd-start_of_season)
 
         # do Hsun-yu Chen's 
-        econ_prob, econ_area = getHexObservations.economics (trigger_id, 
-            best_slot, mapDirectory=outputDir, 
-            area_left=area_left, T_left=time_left, rate=rate) 
+        #print "======================================>>>>>>>>>>>>>>>>>>"
+        #print " economics "
+        #print "getHexObservations.economics (", trigger_id, ",",\
+        #    best_slot, ", mapDirectory= \"",outputDir, "\" ,",\
+        #    "area_left=",area_left, ", days_left=",time_left, ",rate=",rate,") "
+        #print "======================================>>>>>>>>>>>>>>>>>>"
+        econ_prob, econ_area, need_area, quality = \
+            getHexObservations.economics (trigger_id, 
+                best_slot, mapDirectory=outputDir, 
+                area_left=area_left, days_left=time_left, rate=rate) 
 
         hoursOnTarget = (econ_area/area_per_hex ) * (time_cost_per_hex/3600.)
 
@@ -177,49 +231,29 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
             probs, times, hoursPerNight=hoursPerNight,
             hoursAvailable=hoursOnTarget)
 
+        if quick :
+            skipJson = True; 
+        else :
+            skipJson = False; 
         best_slot = getHexObservations.now( 
             n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
             maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
             exposure_list=exposure_length, filter_list=filter_list, 
-            skipJson =False)
+            skipJson =skipJson)
     else :
         econ_prob = 0
         econ_area = 0
+        best_slot = 0
+        need_area = 11734.0 
+        quality = 1.0
 
-    # make observation plots
-    n_plots = getHexObservations.makeObservingPlots(
-        n_slots, trigger_id, best_slot, outputDir)
+    if not quick :
+        # make observation plots
+        n_plots = getHexObservations.makeObservingPlots(
+            n_slots, trigger_id, best_slot, outputDir)
 
-    return best_slot, n_slots, first_slot, econ_prob, econ_area
+    return best_slot, n_slots, first_slot, econ_prob, econ_area, need_area, quality
 
-
-#==== Big routine # 2: find the probabilities over 10 days
-#
-#  For each sim build the  mags.observed object
-#
-#   sims, mjds, distances, models=allMaps.veni()
-#   allMaps.vidi(sims, mjds, distances, models)
-#
-def vidi(sims, mjds, distances, models, do2015=True) :
-    import os.path
-    if do2015:
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2015-out/"
-    else :
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2016-out/"
-    file = "bayestar-{:d}.fits.gz"
-    for sim, mjd, distance in zip(sims,mjds,distances) :
-        simfile = file.format(sim)
-        print "sim, distance: ", sim, distance
-        simfile = data_dir + simfile
-        outdir = odata_dir + str(sim) + "/"
-        name = outdir + str(sim)+"-probabilityPlot.png"
-        if os.path.exists(name) : continue
-
-        mainInjector (sim, simfile, mjd, distance, outdir)
 
 #  sim,mjd,distance,snr, p0,p1,p2,p3,p4,p5,p6,p7,p8,p9 = np.genfromtxt("all-maxtimes-2015.txt", unpack=True);
 

@@ -67,6 +67,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
     import modelRead
     import healpy as hp
     import hp2np
+    import os
     debug = 0
     if start_mjd == 0: start_mjd = burst_mjd
 
@@ -87,8 +88,13 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir,
         print "=============>>>> ",
         print "prepare: using cached probabilities, times, and maps"
         print "\t reading ",probabilityTimesCache
-        probs, times = np.genfromtxt(probabilityTimesCache, unpack=True)
-        return probs, times, slotDuration
+        if os.stat(probabilityTimesCache).st_size == 0 :
+            probs, times = np.array([0,]),np.array([0,])
+            print "\t got nothing- we're skipping this one"
+        else :
+            data = np.genfromtxt(probabilityTimesCache, unpack=True)
+            probs, times = data[0],data[1]
+        return probs, times, slotDuration, hoursPerNight
         
     # ==== get the neutron star explosion models
     models = modelRead.getModels()
@@ -152,10 +158,9 @@ def contemplateTheDivisionsOfTime(
         mapZero = findStartMap ( probs, times, n_slots )
     else :
         raise Exception ("no possible way to get here")
-    print "============================================= "
+    print "=============>>>>  contemplateTheDivisionsOfTime:"
     print "\t n_maps = {}, n_slots = {}, mapZero = {}, prob_max = {:.6}".format(
         n_maps, n_slots, mapZero, probs.max())
-    print "============================================= "
     return n_slots, mapZero
 
 # ==== figure out what to observe
@@ -178,18 +183,21 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
         doneFile = "", skipJson = False ) :
     # if the number of slots is zero, nothing to observe or plot
     if n_slots == 0: 
-        return 0,0,0
+        return 0
     # compute the observing schedule
+    print "=============>>>>  now: observing"
     hoursObserving=observing(
         simNumber,n_slots,mapDirectory, mapZero=mapZero,
         maxHexesPerSlot = maxHexesPerSlot, doneFile=doneFile)
     # print stats to screen
+    print "=============>>>>  now: observingStats"
     ra,dec,prob,mjd,slotNumbers,islots = observingStats(hoursObserving)
     # save results to the record
     observingRecord(hoursObserving, simNumber, mapDirectory)
     # write jsons and get slot number  of maximum probability
     maxProb_slot = maxProbabilitySlot(prob,slotNumbers)
     if not skipJson :
+        print "=============>>>>  now: JSON"
         turnObservingRecordIntoJSONs(
             ra,dec,prob,mjd,slotNumbers, simNumber, 
             exposure_list=exposure_list, filter_list=filter_list, 
@@ -200,12 +208,12 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
 # ===== The economics analysis
 #
 #   area_left is th enumber of hexes we have left to observe this season
-#   T_left is the number of days left in the season
+#   days_left is the number of days left in the season
 #   rate is the effective rate of triggers
 #       p_gw is that for which the table cumul_table_pgw50.txt was  made.
 #
 def economics (simNumber, best_slot, mapDirectory, 
-        area_left=200., T_left=60., rate=1/30.,  p_gw = 0.50) :
+        area_left=200., days_left=60., rate=1/30.,  p_gw = 0.10) :
     import healpy as hp
     import cumul
     import des_optimization
@@ -217,11 +225,13 @@ def economics (simNumber, best_slot, mapDirectory,
     area_bar_p,area_bar = np.genfromtxt(
         gw_data_dir+"/area_bar_table.txt",unpack=True)
     cumu_area,cumu = np.genfromtxt(
-        gw_data_dir+"/cumul_table_pgw50.txt",unpack=True)
+        gw_data_dir+"/cumul_table_pgw10.txt",unpack=True)
 
     obsProb = ligo*prob
     nsides = hp.get_nside(obsProb)
-    area = cumul.area(ra,dec,obsProb, p_gw, nsides)
+    # max area viewable by Blanco at one time is 11734. sq-degrees
+    area = cumul.area(ra,dec,obsProb, p_gw, nsides, max_area=11734.)
+    area_to_cover_p_gw = area
     #print cumu_area
     #print area
     ix = np.searchsorted(cumu_area, area)
@@ -230,12 +240,13 @@ def economics (simNumber, best_slot, mapDirectory,
     else :
         fraction_of_sims_better_than_this_trigger = cumu[ix]
 
-    prob,area = des_optimization.decision(area_left, T_left, rate, 
+    prob,area = des_optimization.decision(area_left, days_left, rate, 
         fraction_of_sims_better_than_this_trigger,
         cumu, cumu_area, area_bar, area_bar_p)
     if prob ==  0 :
         print "ignore event"
-    return prob, area
+    quality = fraction_of_sims_better_than_this_trigger 
+    return prob, area, area_to_cover_p_gw, quality
 
 #
 # ====== there are possibilities. Show them.
@@ -452,7 +463,7 @@ def observing(sim, nslots, data_dir,
                 eliminateHexesAlreadyDone(doneFile, 
                 raHexen, decHexen, hexVal, rank, mjd, slotNum )
         islot = i*np.ones(raHexen.size)
-        print map_i, "map size= {};".format(raHexen.size), 
+        print "\t", map_i, "map size= {};".format(raHexen.size), 
 
         impossible = 1e-12
         impossible = 1e-7
@@ -526,12 +537,12 @@ def observing(sim, nslots, data_dir,
         # check and see if we are done
         # two conditions: observing is full, or candidates empty
         if (len(observingSlots)==0) | (sumHexes == 0) :
-            print "======================================== "
+            print "\t======================================== "
             if verbose >= 1: 
                 print "n slots =", len(observingSlots)," == 0?"
                 print "sumHexes = ", sumHexes, "==? 0"
-            print "number of hexes observed = ", sumObs
-            print "======================================== "
+            print "\tnumber of hexes observed = ", sumObs
+            print "\t======================================== "
             return slotsObserving 
 
         # otherwise, go back and do it again
@@ -546,11 +557,13 @@ def observing(sim, nslots, data_dir,
 def observingStats( slotsObserving, outfile="") :
     nslots = slotsObserving["nslots"]
     for i in range(0,nslots) :
-        print i, "slotnum={} n obs= {}".format(
-            slotsObserving[i,"slotNum"],slotsObserving[i,"ra"].size), 
+        print "\t",i, 
+        #print "slotnum={} ".format( slotsObserving[i,"slotNum"]),
+        print "n obs= {}".format( slotsObserving[i,"ra"].size), 
         print "  sum prob= {:7.4f} %".format( 100*slotsObserving[i,"prob"].sum())
     ra,dec,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
 
+    print "\tobservingStats:  ",
     print "observable prob_tot = {:.1f}%".format(100.*prob.sum())
     return ra,dec,prob,mjd,slotNum,islot
 

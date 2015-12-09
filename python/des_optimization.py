@@ -17,9 +17,11 @@ def solve_p_N(area_left,rate,T_left, alpha, area_bar, area_bar_p):
     #solve the area_left function, 
     # find pairs of (p,N_mas) that satisfy the function
     N_comp=max_scale(N_max_trial,alpha)*rate*T_left/N_max_trial	
-    for pp in prange :
+
+    for i in range(0,prange.size) :
+        pp = prange[i]
         ix=  np.argmin(abs(area_left-area_bar(pp)*N_comp))
-        N_max[pp]=N_max_trial[ix]
+        N_max[i]=N_max_trial[ix]
     
     #find the pair (p,N_max) that maximize the p_tot 
     arg=np.argmax(prange*rate*T_left/N_max)
