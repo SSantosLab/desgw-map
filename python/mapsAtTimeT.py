@@ -1,5 +1,6 @@
 import numpy as np
 import healpy as hp
+import os
 
 import sourceProb
 import modelRead
@@ -168,7 +169,7 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         # sm.prob = limiting mag convolve abmag convolve volume
         # sm.probMap = total prob map
         # hexRa,hexDec,hexVals
-        nameStem = data_dir + str(sim) + "-{}".format(str(counter)) 
+        nameStem = os.path.join(data_dir, str(sim) + "-{}".format(str(counter)))
         print "\t Writing files as {}".format(nameStem)
 
         name = nameStem + "-ra.hp"
@@ -225,7 +226,7 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
 
 # Get the saved maps for each day and hour.
 def readMaps (data_dir, simNumber, slot) :
-    name = data_dir + str(simNumber) + "-{}".format(str(slot)) 
+    name = os.path.join(data_dir, str(simNumber) + "-{}".format(str(slot)))
 
     ra=hp.read_map(name+"-ra.hp");
     dec=hp.read_map(name+"-dec.hp");
