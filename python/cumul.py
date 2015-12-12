@@ -7,15 +7,21 @@
 #
 import healpy as hp
 import numpy as np
-# 11734 is the total area viewable by blanco at any given instant
-def area(ra,dec,vals, threshold, nside, max_area=11734.) :
-    npix = contour_sum(ra,dec,vals,threshold)
+def area(ra,dec,vals, threshold, nside, max_area) :
+    npix, cumulative  = contour_sum(ra,dec,vals,threshold)
     if npix == ra.size :
         area = max_area
     else :
         area_per_pixel = hp.nside2pixarea(nside)*((360./2/np.pi)**2)
         area = npix*area_per_pixel
-    return area
+    return area, cumulative
+
+def probability_covered(ra,dec,vals, area, nside, max_area) :
+    area_per_pixel = hp.nside2pixarea(nside)*((360./2/np.pi)**2)
+    npix= area/area_per_pixel
+    ix = np.argsort(vals)[::-1] ;# descending order
+    probability = (vals[ix][0:npix]).sum()
+    return probability
 
 def contour_sum(ra, dec, vals, threshold) :
     ix = np.argsort(vals)[::-1] ;# descending order
@@ -25,15 +31,13 @@ def contour_sum(ra, dec, vals, threshold) :
 
     cumulative = 0
     i = 0
-    if vals.sum() < threshold :
+    while cumulative < threshold and i < ra.size :
+        cumulative +=  vals_sort[i]
+        i += 1
+    if i == ra.size :
+        i -= 1
         print "\t contour_sim: ",
         print " npix set to max as sum < threshold, ",
         print "{:.2f}<{:.2f} ".format(vals.sum(),threshold)
-        npixels = ra.size
-    else :
-        while cumulative < threshold :
-            cumulative +=  vals_sort[i]
-            i += 1
-        npixels =ra_sort[:i].size 
-    return npixels
-
+    npixels =ra_sort[:i].size 
+    return npixels,cumulative

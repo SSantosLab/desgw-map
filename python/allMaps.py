@@ -117,6 +117,8 @@ def vidiHYC2 (do2015=True, thresh=0.50, outfile="") :
 #
 #   sims, mjds, distances, models=allMaps.veni()
 #   allMaps.vidi(sims, mjds, distances, models)
+#           test: ix=np.nonzero((sims==10934)|(sims==1087))
+#           allMaps.vidi(sims[ix], mjds[ix], distances[ix], models)
 #
 def vidi(sims, mjds, distances, models, do2015=True, quick=True) :
     import os.path
@@ -131,7 +133,7 @@ def vidi(sims, mjds, distances, models, do2015=True, quick=True) :
         #odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2016-out/"
         odata_dir = "/data/des30.a/data/annis/des-gw/nsims-2016-out/"
     file = "bayestar-{:d}.fits.gz"
-    outfile = odata_dir + "mainInjector-sim-mjd-dist-bslot-nslot-econ_prob-econ_area_quality.txt"
+    outfile = odata_dir + "mainInjector-sim-mjd-dist-bslot-nslot-probcovered-econ_area-need_area-quality.txt"
     fd = open(outfile,"w"); fd.close()
     counter = 0
     for sim, mjd, distance in zip(sims,mjds,distances) :
@@ -184,10 +186,11 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
     else :
         skipAll = False
     probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
-        skymap, mjd, trigger_id, outputDir, distance=distance,
+        skymap, mjd, trigger_id, outputDir, outputDir, distance=distance,
         exposure_list=exposure_length, filter_list=filter_list,
         overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
         skipAll=skipAll)
+        #skipHexelate=True, skipAll=False)
                 
     # figure out how to divide the night
     n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
@@ -211,35 +214,36 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
         rate = len(events_observed)/(recycler_mjd-start_of_season)
 
         # do Hsun-yu Chen's 
-        #print "======================================>>>>>>>>>>>>>>>>>>"
-        #print " economics "
-        #print "getHexObservations.economics (", trigger_id, ",",\
-        #    best_slot, ", mapDirectory= \"",outputDir, "\" ,",\
-        #    "area_left=",area_left, ", days_left=",time_left, ",rate=",rate,") "
-        #print "======================================>>>>>>>>>>>>>>>>>>"
+        print "======================================>>>>>>>>>>>>>>>>>>"
+        print " economics "
+        print "getHexObservations.economics (", trigger_id, ",",\
+            best_slot, ", mapDirectory= \"",outputDir, "\" ,",\
+            "area_left=",area_left, ", days_left=",time_left, ",rate=",rate,") "
+        print "======================================>>>>>>>>>>>>>>>>>>"
         econ_prob, econ_area, need_area, quality = \
             getHexObservations.economics (trigger_id, 
                 best_slot, mapDirectory=outputDir, 
                 area_left=area_left, days_left=time_left, rate=rate) 
 
-        hoursOnTarget = (econ_area/area_per_hex ) * (time_cost_per_hex/3600.)
+        if econ_area > 0.0 :
+            hoursOnTarget = (econ_area/area_per_hex ) * (time_cost_per_hex/3600.)
 
-        # figure out how to divide the night, 
-        # given the new advice on how much time to spend
+            # figure out how to divide the night, 
+            # given the new advice on how much time to spend
 
-        n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
-            probs, times, hoursPerNight=hoursPerNight,
-            hoursAvailable=hoursOnTarget)
+            n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
+                probs, times, hoursPerNight=hoursPerNight,
+                hoursAvailable=hoursOnTarget)
 
-        if quick :
-            skipJson = True; 
-        else :
-            skipJson = False; 
-        best_slot = getHexObservations.now( 
-            n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
-            maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
-            exposure_list=exposure_length, filter_list=filter_list, 
-            skipJson =skipJson)
+            if quick :
+                skipJson = True; 
+            else :
+                skipJson = False; 
+            best_slot = getHexObservations.now( 
+                n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
+                maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
+                exposure_list=exposure_length, filter_list=filter_list, 
+                skipJson =skipJson)
     else :
         econ_prob = 0
         econ_area = 0

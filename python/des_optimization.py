@@ -14,8 +14,8 @@ def solve_p_N(area_left,rate,T_left, alpha, area_bar, area_bar_p):
     # produce a useful version of the area_bar, area_bar_p curve
     area_bar=interp1d(area_bar_p,area_bar)	
     
-    #solve the area_left function, 
-    # find pairs of (p,N_mas) that satisfy the function
+    # solve the area_left function, 
+    # find pairs of (p,N_max) that satisfy the function
     N_comp=max_scale(N_max_trial,alpha)*rate*T_left/N_max_trial	
 
     for i in range(0,prange.size) :
@@ -27,43 +27,35 @@ def solve_p_N(area_left,rate,T_left, alpha, area_bar, area_bar_p):
     arg=np.argmax(prange*rate*T_left/N_max)
     return prange[arg],N_max[arg]
 
+
 #
-# the master code.
+# This is the average event- we evaluate the probabilty for the
+# average event, so that we can consider the real event
+# this is the decisison we would make for the average event
+# (you would use this p on the average map to find the average area)
+# 
 #   inputs: 
 #       area_left area that could be observed this season
 #       rate      effective rate of triggers
 #       T_left    time left in the season
-#       q         quality of this event = %tile on cumulative area  plot
 #       cl, Ap    this is the cumulative  distribution function of area
-#                   for probability p, p_gw in our notation, 
-#                   measured on the sims
-#       area_bar  this pair is the average area of the sims as a 
-#       area_bar_p  function of probability p (vary p_gw, measure area_bar)
+#                   for a fixed probability p ( p_gw in our notation), 
+#                   as measured on the sims
+#       area_bar   this pair is the average area of the sims as a 
+#       area_bar_p function of probability p (i.e. we vary p_gw, measure area_bar)
 #       
-def decision(area_left, T_left, rate, q, cl, Ap, area_bar, area_bar_p) :
-    # determine the percentile of the event 
-    # (area larger than 100q% of the events)
+def evaluate_average_event(area_left, T_left, rate, cl, Ap, area_bar, area_bar_p) :
+    #
+    # solve the general case
+    #
 
     #the scaling index of the area, alpha=1.8 for 2015
     alpha = 1.8
 
     # solve the implicit equation for p and N_max
     p,N_max=solve_p_N( area_left, rate, T_left, alpha, area_bar, area_bar_p )	
+    # N_max: how loud is the softest one 
+    # p: the probability that maximizes total probability if all events were average
 
-    #interpolate A(p)  a table of cl:confidence level(p) Ap: A(p)
-    findarea=interp1d(cl,Ap)	
-
-    if q<1./N_max:
-        #your function that find the area corresponds to p (p we determined)
-        area=findarea(p)	
-        area = np.float(area)
-        if area>area_left:
-            #print "last followup"
-            area=area_left			 
-            #print "follow up to",p,
-            # print "confidence level, corresponding to",area,"square degree"
-        return p,area
-    else:
-        #print "ignore event"
-        return 0,0
+    return p, N_max
 

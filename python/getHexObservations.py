@@ -85,6 +85,11 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
 
     probabilityTimesCache = os.path.join(data_dir,\
         "probabilityTimesCache_"+str(trigger_id)+".txt")
+    if skipAll and not os.path.isfile(probabilityTimesCache) :
+        print "=============>>>> forced to calculate probs as cache file nonexistent"
+        skipAll = False
+        skipHexelate = True
+
     if skipAll :
         print "=============>>>> ",
         print "prepare: using cached probabilities, times, and maps"
@@ -95,7 +100,6 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
         else :
             data = np.genfromtxt(probabilityTimesCache, unpack=True)
             probs, times = data[0],data[1]
-        probs, times = np.genfromtxt(probabilityTimesCache, unpack=True)
         return probs, times, slotDuration, hoursPerNight
         
     # ==== get the neutron star explosion models
@@ -118,7 +122,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
     if debug :
         return  obs, trigger_id, mjd, distance, models, times, probs,data_dir
     if doOnlyMaxProbability :
-        if len(probs) == 0 : return [0,],[0,]
+        if len(probs) == 0 : return [0,],[0,],[0,],[0,]
         ix = np.argmax(probs)
         probs = [probs[ix],]
         times = [times[ix],]
@@ -226,29 +230,41 @@ def economics (simNumber, best_slot, mapDirectory,
 
     area_bar_p,area_bar = np.genfromtxt(
         gw_data_dir+"/area_bar_table.txt",unpack=True)
-    cumu_area,cumu = np.genfromtxt(
+    avge_cumu_area,avge_cumu = np.genfromtxt(
         gw_data_dir+"/cumul_table_pgw10.txt",unpack=True)
 
     obsProb = ligo*prob
     nsides = hp.get_nside(obsProb)
     # max area viewable by Blanco at one time is 11734. sq-degrees
-    area = cumul.area(ra,dec,obsProb, p_gw, nsides, max_area=11734.)
+    max_area=11734.
+    area, cum_prob  = cumul.area(ra,dec,obsProb, p_gw, nsides, max_area=max_area)
     area_to_cover_p_gw = area
-    #print cumu_area
+    #print avge_cumu_area
     #print area
-    ix = np.searchsorted(cumu_area, area)
-    if ix >= cumu_area.size :
+    ix = np.searchsorted(avge_cumu_area, area)
+    if ix >= avge_cumu_area.size :
         fraction_of_sims_better_than_this_trigger = 1.0
     else :
-        fraction_of_sims_better_than_this_trigger = cumu[ix]
+        fraction_of_sims_better_than_this_trigger = avge_cumu[ix]
 
-    prob,area = des_optimization.decision(area_left, days_left, rate, 
-        fraction_of_sims_better_than_this_trigger,
-        cumu, cumu_area, area_bar, area_bar_p)
-    if prob ==  0 :
-        print "ignore event"
+    prob, N_max = des_optimization.evaluate_average_event(
+        area_left, days_left, rate, avge_cumu, avge_cumu_area, area_bar, area_bar_p)
+
+    if fraction_of_sims_better_than_this_trigger < 1./N_max :
+        area, cum_prob = cumul.area(ra,dec,obsProb, prob, nsides, max_area=max_area)
+        if area>area_left:
+            print "\t maxing out area: \t {:.3f} -> ".format( cum_prob),
+            cum_prob = cumul.probability_covered(ra,dec,obsProb, area_left, nsides, max_area=max_area)
+            print "{:.3f}".format(cum_prob)
+            area=area_left
+    else :
+        print "\t ignore event"
+        area = 0
+        prob = 0
+
+    probability_covered = cum_prob
     quality = fraction_of_sims_better_than_this_trigger 
-    return prob, area, area_to_cover_p_gw, quality
+    return probability_covered, area, area_to_cover_p_gw, quality
 
 #
 # ====== there are possibilities. Show them.
