@@ -37,7 +37,7 @@ def dustA(filter) :
         raise Exception ("no such filter {}".format(filter))
     return A
 
-def loadDust(dir = "/home/s1/annis/daedalean/gw/python/", 
+def loadDust(dir = "/home/s1/annis/daedalean/desgw-map/data/", 
         file = "plank-ebv-HFI_CompMap_ThermaDustModel.fits") :
     print "\t loading dust map ",dir+file
     hpFile = True

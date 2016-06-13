@@ -28,7 +28,11 @@ license="""
 #  http://books.google.com/books?id=8LZeu8RxOIsC&pg=PA151&lpg=PA151&dq=McBryde-Thomas+Flat-Polar+Quartic+equations&source=bl&ots=Amq75MbxBD&sig=5YJQoCpr3FDXxz2k_W58T0B94I8&hl=en&sa=X&ei=uakSUtzUEqH94APUy4Aw&ved=0CDsQ6AEwAg#v=onepage&q=McBryde-Thomas%20Flat-Polar%20Quartic%20equations&f=false
 # which is 153, Cartographic Science: A Compendium of Map Projections, with Derivations By Donald Fenna
 
-def mcbryde (ra,dec, southUp=0, test=0, alpha=0) :
+#
+# alpha is the degrees to rotate ra
+# beta is the degrees to rotate dec
+#
+def mcbryde (ra,dec, southUp=0, test=0, alpha=0, beta=0) :
     global psi_spline
     if test: rai = ra; deci=dec
     pi = np.pi
@@ -38,7 +42,7 @@ def mcbryde (ra,dec, southUp=0, test=0, alpha=0) :
     #alpha = -30 ;# for a projection on a nice part of the des
     #alpha = 0
     #alpha = -80
-    ra, dec = mtCoord (ra,dec, alpha) 
+    ra, dec = mtCoord (ra,dec, alpha, beta) 
 
     try :
         psi = psi_spline(dec)
@@ -124,10 +128,11 @@ def mcbryde (ra,dec, southUp=0, test=0, alpha=0) :
     if type(x) is np.ndarray and len(x) == 1 : x = x[0]; y = y[0]
     return x,y
 
-def mtCoord (ra,dec, alpha) :
+def mtCoord (ra,dec, alpha, beta) :
     lon = ra; lat = dec
     x,y,z = rotate.sphericalToCartesian(lon,lat)
     x,y,z = rotate.rotateAboutZaxis(x,y,z, alpha)
+    x,y,z = rotate.rotateAboutYaxis(x,y,z, beta)
     lon,lat,r = rotate.cartesianToSpherical(x,y,z)
     try :
         index = np.nonzero(lon > 180)

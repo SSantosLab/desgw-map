@@ -174,6 +174,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
     area_per_hex    = config["area_per_hex"]
     start_of_season = config["start_of_season"]
     end_of_season   = config["end_of_season"]
+    # a hack for  first season, surely we have a better rate?
     events_observed = config["events_observed"]
     exposure_length = np.array(exposure_length)
     
@@ -185,11 +186,13 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
         skipAll = True
     else :
         skipAll = False
+    resolution = 256 ;# default, quick
+    #resolution = 512 ;# native resolution of the LMC event
     probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
         skymap, mjd, trigger_id, outputDir, outputDir, distance=distance,
         exposure_list=exposure_length, filter_list=filter_list,
         overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
-        skipAll=skipAll)
+        skipAll=skipAll, resolution=resolution)
         #skipHexelate=True, skipAll=False)
                 
     # figure out how to divide the night
@@ -211,6 +214,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
         time_cost_per_hex = nvisits * np.sum(overhead + exposure_length) #sec 
         area_left =  area_per_hex * (hoursAvailable * 3600)/(time_cost_per_hex)
         time_left = end_of_season - start_of_season
+        # Shin-yu is there a better rate?
         rate = len(events_observed)/(recycler_mjd-start_of_season)
 
         # do Hsun-yu Chen's 
@@ -254,7 +258,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
     if not quick :
         # make observation plots
         n_plots = getHexObservations.makeObservingPlots(
-            n_slots, trigger_id, best_slot, outputDir)
+            n_slots, trigger_id, best_slot, outputDir, outputDir)
 
     return best_slot, n_slots, first_slot, econ_prob, econ_area, need_area, quality
 

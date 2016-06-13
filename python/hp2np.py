@@ -75,3 +75,19 @@ def convert(template_ra, template_dec, ra, dec, vals) :
     newmap = np.array(newmap)
     return newmap
         
+def radec2hp(ra, dec, nsides=1024) :
+# coordinate conversion
+    phi = ra*2*np.pi/360.;
+    theta = (90-dec)*2*np.pi/360.
+    pix = hp.ang2pix(nsides,theta,phi)
+# build an empty healpix map
+    npix = hp.nside2npix(nsides)
+    vector = np.empty(npix)
+    vector[:] = np.NAN
+# fill it
+    unique_pixels  = np.unique(pix)
+    for up in unique_pixels:
+        ix = np.nonzero(pix==up)
+        count = ix[0].size
+        vector[up] = count
+    return vector

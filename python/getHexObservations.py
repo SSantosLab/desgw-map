@@ -62,7 +62,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
         overhead=30., maxHexesPerSlot=6,
         start_mjd = 0, skipHexelate=False, skipAll=False, 
         onlyHexesAlreadyDone="", 
-        saveHexalationMap=True, doOnlyMaxProbability=False) :
+        saveHexalationMap=True, doOnlyMaxProbability=False, resolution=256) :
     import mapsAtTimeT
     import mags
     import modelRead
@@ -107,7 +107,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
 
     # === prep the maps
     ligo = hp.read_map(skymap)
-    ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
+    ra,dec,ligo = hp2np.map2np(ligo, resolution, fluxConservation=True)
     obs = mags.observed(ra,dec,ligo, start_mjd, verbose=False)
     obs.limitMag("i",exposure=exposure_length)
 
@@ -302,8 +302,9 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
             name = str(simNumber)+"-observingPlot-{}.png".format(i)
             plt.savefig(os.path.join(mapDirectory,name))
             counter += 1
+            counter+= equalAreaPlot(figure,i,simNumber,data_dir,mapDirectory)
 
-    counter+= equalAreaPlot(figure,best_slot,simNumber,data_dir,mapDirectory)
+    #counter+= equalAreaPlot(figure,best_slot,simNumber,data_dir,mapDirectory)
 
     # return the number of plots made
     return counter
@@ -573,7 +574,7 @@ def observing(sim, nslots, data_dir,
 #
 # examine the statistics of the observing lists
 #
-def observingStats( slotsObserving, outfile="") :
+def observingStats( slotsObserving ) :
     nslots = slotsObserving["nslots"]
     for i in range(0,nslots) :
         print "\t",i, 
@@ -602,7 +603,7 @@ def readObservingRecord(simNumber, data_dir) :
             np.array(0),np.array(0),np.array(0), \
             np.array(0),np.array(0)
     else :
-        ra,dec,prob,mjd,slotNum = np.genfromtxt(name,unpack=True)
+        ra,dec,prob,mjd,slotNum = np.genfromtxt(name,unpack=True,comments="#")
     return ra,dec,prob,mjd,slotNum
 
 def slotsObservingToNpArrays(slotsObserving) :
@@ -952,191 +953,20 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) :
 # modify mcbryde to have alpha=center of plot
 #   "slot" is roughly hour during the night at which to make plot
 def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
-    import os
-    from equalArea import mcbryde
-    import matplotlib.pyplot as plt
-    import healpy as hp
-    import jsonMaker
-    import insideDesFootprint
+    import plotMapAndHex
 
     # get the planned observations
     ra,dec,prob,mjd,slotNumbers = readObservingRecord(simNumber, data_dir)
     
-    # get the maps for a reasonable slot
-    raMap, decMap, ligoMap, maglimMap, probMap, \
-        haMap, xMap, yMap, hxMap, hyMap = readMaps(data_dir, simNumber, slot)
-
-    ix = probMap > 0
-    medianRA = np.median(raMap[ix])
-    decMin = -90.; decMax = 40.
-    raMin = medianRA -90.
-    raMax = medianRA +90.
-    alpha= -1*medianRA
-
-    box=5.
-    decMin = dec.min()-box
-    decMax = dec.max()+box
-    decMid = (decMax-decMin)/2.
-    box=box*3
-    boxRa = box/np.cos(decMid*2*np.pi/360.)
-    raMin = ra.min()-boxRa
-    raMax = ra.max()+boxRa
-    raMid = (raMax-raMin)/2.
-    alpha= -1*raMid
-
-    v1 = np.array([raMin, raMax, raMax, raMin, raMin])
-    v2 = np.array([decMin, decMin, decMax, decMax, decMin])
-    x,y = mcbryde.mcbryde(v1, v2, alpha=alpha)
-    xmin = x.min(); xmax = x.max()
-    ymin = y.min(); ymax= y.max()
-
-    xMap,yMap = mcbryde.mcbryde(raMap, decMap, alpha=alpha)
-    x,y = mcbryde.mcbryde(ra, dec, alpha=alpha)
-    # show me the whole plot  (extremely slow)
-    #xmin = xMap.min(); xmax = xMap.max()
-    #ymin = yMap.min(); ymax= yMap.max()
-
-
-    ix=np.nonzero((xMap > xmin) & (xMap  <= xmax) & (yMap > ymin) & (yMap <= ymax) )
-    #ix=np.nonzero((xMap > xmin) & (xMap  <= xmax) & (yMap > ymin) & (yMap <= ymax) &(maglimMap>10))
-
-
-    cmap = "cubehelix_r"
-    cmap = "YlGnBu"
-    gridsize = 110
-    gridsize = 66
-    plt.clf();
-    plt.hexbin(xMap[ix],yMap[ix],maglimMap[ix],
-        vmin=19., vmax=23.1, gridsize=gridsize,cmap=cmap,mincnt=1); 
-    plt.colorbar()
-        #vmin=20., vmax=23., gridsize=100,cmap=cmap); plt.colorbar()
-
-    plotLigoContours(xMap[ix],yMap[ix], probMap[ix]*ligoMap[ix], whiteLine=True) 
-
-    ax = figure.add_subplot(1,1,1)
-#    ix = slotNumbers == slot
-#    ax=plotDecamHexen(ax, ra[ix],dec[ix],alpha, color="r", lw=1) 
-    ax=plotDecamHexen(ax, ra,dec,alpha, color="r", lw=1) 
-    ix =np.invert( insideDesFootprint.insideFootprint(ra, dec))
-    ax=plotDecamHexen(ax, ra[ix],dec[ix],alpha, color="orange", lw=1) 
-
-#    offsets = jsonMaker.tileOffsets()
-#    delRa = offsets[8][0]
-#    delDec = offsets[8][1]
-#    tdec = dec+delDec
-#    tra = ra + delRa/np.cos(tdec*2*np.pi/360.)
-#    ax=plotDecamHexen(ax, tra,tdec,alpha, color="orange", lw=1) 
-#    delRa = offsets[9][0]
-#    delDec = offsets[9][1]
-#    tdec = dec+delDec
-#    tra = ra + delRa/np.cos(tdec*2*np.pi/360.)
-#    ax=plotDecamHexen(ax, tra,tdec,alpha, color="orange", lw=1) 
-
     title = "i-band limiting magnitude"
     if extraTitle != "" :
         extraTitle = " mjd {:.2f}: ".format(extraTitle)
         title = extraTitle+title
-    plt.title(title)
-    plt.xlabel("total prob. countours at prob. max/[1.1, 3, 10, 30]")
-    plt.xlim(xmin, xmax)
-    plt.ylim(ymin, ymax)
-    plt.axes().set_aspect('equal'); 
-    #plt.axes().set_frame_on(False); 
-    plt.axes().set_xticks([]); 
-    plt.axes().set_yticks([])
-    plt.show()
+    title = title + "      LIGO countours at max/[1.1, 3, 10, 30]"
 
-def plotDecamHexen(ax, ra,dec,alpha, color="r", lw=1, plateCaree=False) :
-    import decam2hp
-    import matplotlib.patches 
-    import matplotlib.path 
-    from equalArea import mcbryde
-    nHex = ra.size
-    for i in range(0,nHex) :
-        hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i])
-        hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha)
-        if plateCaree:
-            hexX,hexY = hexRa, hexDec
-        hex_path = matplotlib.path.Path(zip(hexX,hexY))
-        hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
-        #hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor="w", lw=1.5, fill=False)
-        ax.add_patch(hex_patch)
-        #x,y=mcbryde.mcbryde(tra[i],tdec[i], alpha=alpha)
-        #plt.text(x,y,"{}".format(i), ha="center", va="center", color="w")
-    return ax
 
-def plotLigoContours(x,y, vals, whiteLine=False) :
-    import matplotlib
-    import matplotlib.pyplot as plt
-    from scipy.interpolate import griddata
-    con_levels=5
-    max=vals.max()
-    levels=[max/30.,max/10.,max/3.,max/1.1]
-    print "\t\t contours at max/1.1,3,10,30"
+    print "plotMapAndHex.mapAndHex(figure, ", simNumber, ",", slot, ",", data_dir, ",", nslots, ",ra,dec,", title,") "
+    d=plotMapAndHex.mapAndHex(figure, simNumber, slot, data_dir, nslots, ra, dec, title) 
+    return d
 
-    xmin = x.min(); xmax = x.max()
-    ymin = y.min(); ymax = y.max()
-    
-    coord = np.array(zip(x,y))
-    xi=np.linspace(xmin, xmax, 500)
-    yi=np.linspace(ymin, ymax, 500)
-    xi,yi=np.meshgrid(xi,yi)
-    zi = griddata(coord,vals,(xi,yi),method="cubic")
-    if whiteLine==True :
-        plt.contour(xi,yi,zi,con_levels,linewidths=0.66,colors="w", levels=levels)
-    elif whiteLine == "red" :
-        plt.contour(xi,yi,zi,con_levels,linewidths=0.66,colors="r", levels=levels)
-    else :
-        plt.contour(xi,yi,zi,con_levels,linewidths=3,colors="k", levels=levels)
-
-# dir1 = "/home/s1/annis/daedalean/desgw-map/records/"; dir2="/home/s1/annis/daedalean/gw/failedSN/"; import hp2np
-# skymap = "/data/des41.a/data/desgw/maininjector_devel/real-triggers/G184098/G184098_bayestar.fits"
-# ra,dec,vals=hp2np.hp2np(skymap, fluxConservation=True)
-# ra1,dec1,there1=np.genfromtxt(dir2+"/WR",unpack=True,usecols=(7,8,9),comments="#")
-# ra2,dec2 = np.genfromtxt(dir2+"neugent-red",unpack=True,usecols=(0,1),comments="#")
-# ra2a,dec2a = np.genfromtxt(dir2+"neugent-yellow",unpack=True,usecols=(0,1),comments="#")
-# ra2 = np.append(ra2,ra2a); dec2=np.append(dec2,dec2a)
-# rah,dech,exp,enum=np.genfromtxt(dir1+"G184098.observed",unpack=True,comments="#", usecols=(1,2,3,0))
-# band = np.genfromtxt(dir1+"G184098.observed",unpack=True,comments="#", usecols=(4),dtype=str)
-# lmc1=(exp< 45)&(band=="i")&(enum < 476353)
-# lmc2=(exp< 45)&(band=="i")&(enum > 476353) & (enum %2 ==0) ;# even
-# rah2=rah[lmc2]; dech2=dech[lmc2]
-# rah1=rah[lmc1]; dech1=dech[lmc1]
-# import find; ix2=find.remove(ra2,dec2,ra2); ix1=there1<1
-# reload(getHexObservations); getHexObservations.special(figure,ra,dec,vals,ra1,dec1,ix1,ra2,dec2,ix2,rah1,dech1,rah2,dech2,decMin=-76,decMax=-62,raMin=67,raMax=92);plt.savefig("special.pdf")
-#
-#
-#   the ligo in blue, lmc hexes in yellow and red
-def special(figure, ra, dec, vals, ra1,dec1, ix1, ra2,dec2,ix2,\
-        rah1,dech1, rah2,dech2, \
-        raMin=70.,raMax=90.,decMin=-75, decMax=-60., alpha=-80., gs=15) :
-    from equalArea import mcbryde
-    import matplotlib.pyplot as plt
-    v1 = np.array([raMin, raMax, raMax, raMin, raMin]); 
-    v2 = np.array([decMin, decMin, decMax, decMax, decMin])
-    x,y = mcbryde.mcbryde(v1, v2, alpha=alpha);
-    xmin = x.min(); xmax = x.max();ymin = y.min(); ymax= y.max()
-    x,y=mcbryde.mcbryde(ra,dec,alpha=alpha); 
-    ix=(x>xmin)&(x<=xmax)&(y>ymin)&(y<=ymax)
-    plt.clf(); 
-    plt.axes().set_aspect('equal')
-    plt.axes().set_frame_on(False);
-    plt.axes().set_xticks([]);
-    plt.axes().set_yticks([])
-    plt.hexbin(x[ix],y[ix],vals[ix],cmap="YlGnBu_r",gridsize=gs);
-    #plt.colorbar()
-    ax = figure.add_subplot(1,1,1); 
-    plotDecamHexen(ax,rah1,dech1,alpha,color="orange",lw=1.3); 
-    plotDecamHexen(ax,rah2,dech2,alpha,color="orange",lw=1.3); 
-    plt.scatter(*(mcbryde.mcbryde(ra2,dec2,alpha=alpha)),c="yellow");
-    plt.scatter(*(mcbryde.mcbryde(ra1,dec1,alpha=alpha)),c="green"); 
-    plt.scatter(*(mcbryde.mcbryde(ra2[ix2],dec2[ix2],alpha=alpha)),c="red");
-    plt.scatter(*(mcbryde.mcbryde(ra1[ix1],dec1[ix1],alpha=alpha)),c="red"); 
-    #plt.xlim(-6,6);plt.ylim(-118,-110)
-    delx=0.05*(xmax-xmin)
-    dely=0.05*(ymax-ymin)
-    plt.xlim(xmin+delx,xmax-delx);plt.ylim(ymin+dely,ymax-dely)
-    plt.xlabel("RA");plt.ylabel("Dec")
-    plt.title("LMC Supergiants and WR Stars on LIGO Map")
-    # plt.show()
 
