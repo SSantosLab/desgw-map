@@ -1,3 +1,4 @@
+# the hex centers over the whole sky of a tiling 9
 -12.189249 64.87722
 -4.792262 65.50890
 2.823980 65.68365
