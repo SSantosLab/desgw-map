@@ -63,7 +63,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
         overhead=30., maxHexesPerSlot=6,
         start_mjd = 0, skipHexelate=False, skipAll=False, 
         this_tiling = "", reject_hexes = "",
-        !! onlyHexesAlreadyDone="", 
+        onlyHexesAlreadyDone="", 
         saveHexalationMap=True, doOnlyMaxProbability=False, resolution=256) :
     import mapsAtTimeT
     import mags
@@ -318,20 +318,12 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
 #
 # ===== its a disaster, compute something
 #
-def nothingToObserveShowSomething(skymap, mjd, exposure_length) :
-    import healpy as hp
-    import hp2np
-    import mags
-    import sourceProb
-    ligo = hp.read_map(skymap)
-    ra,dec,ligo = hp2np.map2np(ligo,256, fluxConservation=True)
-    obs = mags.observed(ra,dec,ligo,round(mjd,0), verbose=False)
-    obs.limitMag("i",exposure=exposure_length)
-    maglim = obs.maglim
-    sm=sourceProb.map(obs, lumModel="known")
-    sm.calculateProb()
-    probMap = sm.probMap
-    return ra, dec, ligo, maglim, probMap
+def nothingToObserveShowSomething(simNumber, data_dir, mapDir) :
+    import matplotlib.pyplot as plt
+    figure = plt.figure(1,figsize=(8.5*1.618,8.5))
+    slot = 0
+    counter = equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) 
+    return clounter
 #
 # no, no, no, we actually can see something: lets see the best plots
 #
@@ -400,7 +392,7 @@ def turnObservingRecordIntoJSONs(
         tmpname, name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
         jsonMaker.writeJson(ra[ix],dec[ix],id[ix],
             simNumber, seqzero, seqtot, exposureList= exposure_list, 
-            filterList= filter_list, trigger_type, jsonFilename=tmpname)
+            filterList= filter_list, trigger_type=trigger_type, jsonFilename=tmpname)
 
         desJson(tmpname, name, mapDirectory) 
         seqzero =+ ra[ix].size
@@ -423,6 +415,11 @@ def desJson(tmpname, name, data_dir, verbose = 1) :
     gwwide.file_gwwide(tmpname, des_json, name)
 
 def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
+    time = utcFromMjd(mjd)
+    tmpname, name = jsonName(slot, time, simNumber, mapDirectory)
+    return tmpname, name
+
+def utcFromMjd (mjd) :
     from pyslalib import slalib
     date = slalib.sla_djcl(mjd)
     year = np.int(date[0])
@@ -431,9 +428,8 @@ def jsonUTCName (slot, mjd, simNumber, mapDirectory) :
     hour = np.int(date[3]*24.)
     minute = np.int( (date[3]*24.-hour)*60.  )
     time = "UTC-{}-{}-{}-{}:{}:00".format(year,month,day,hour,minute)
-    tmpname, name = jsonName(slot, time, simNumber, mapDirectory)
+    return time
 
-    return tmpname, name
 def jsonName (slot, utcString, simNumber, mapDirectory) :
     slot = "-{}-".format(np.int(slot))
     tmpname = os.path.join(mapDirectory, str(simNumber) + slot + utcString + "-tmp.json")
@@ -566,13 +562,14 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     
     title = "i-band limiting magnitude"
     if extraTitle != "" :
-        extraTitle = " mjd {:.2f}: ".format(extraTitle)
+        #extraTitle = " mjd {:.2f}: ".format(extraTitle)
+        extraTitle = " {} ".format(utcFromMjd(mjd))
         title = extraTitle+title
     title = title + "      LIGO countours at max/[1.1, 3, 10, 30]"
 
 
     print "plotMapAndHex.mapAndHex(figure, ", simNumber, ",", slot, ",", data_dir, ",", nslots, ",ra,dec,", title,") "
-    d=plotMapAndHex.mapAndHex(figure, simNumber, slot, data_dir, nslots, ra, dec, title) 
+    d=plotMapAndHex.mapAndHex(figure, simNumber, slot, data_dir, nslots, ra, dec, title, slots=slotNumbers) 
     return d
 
 

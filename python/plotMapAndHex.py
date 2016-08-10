@@ -30,7 +30,7 @@ def plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax) :
 # reload(plotMapAndHex);plotMapAndHex.mapAndHex(figure, "G211117",0,"/data/des30.a/data/annis/des-gw/Christmas16-event/maps/", 8, raHex, decHex, "" )
 #
 def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec, 
-        title="", colorbar=True) :
+        title="", colorbar=True, slots=np.zeros(0)) :
     import healpy as hp
     import hp2np
 
@@ -96,7 +96,7 @@ def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec,
         low_limit, high_limit, ligoMap, origLigoMap, doLigoMap=True, doOrigLigoMap=doOrigLigoMap,
         resolution=resolution, image=image, scale=scale, badData=badData, badDataVal=badDataVal,
         redRa = redRa, title=title, raMid=raMid, raBoxSize=raBoxSize, decBoxSize = decBoxSize, 
-        mod_ra=mod_ra, mod_dec= mod_dec , colorbar=colorbar)
+        mod_ra=mod_ra, mod_dec= mod_dec , colorbar=colorbar, slots=slots, thisSlot=slot)
 
     return alpha,beta
 
@@ -105,7 +105,7 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
         resolution=512, image=False, scale=1., badData=False, badDataVal=-11.0,
         redRa = 90., title="", raMid=-1000, raBoxSize=5., decBoxSize=5., mod_ra = 0, mod_dec=0.,
         doHexes = True, gradRedHiDec = -80, raGratDelRa=30., decGratDelDec=10. , colorbar=True,
-        contourLabels=True ) :
+        contourLabels=True , slots=np.zeros(0), thisSlot=0) :
     from equalArea import mcbryde
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -190,6 +190,11 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
         ax=plotDecamHexen(ax, hexRa,hexDec,alpha, beta, color="r", lw=linewidth) 
         #ix =np.invert( insideDesFootprint.insideFootprint(hexRa, hexDec))
         #ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="orange", lw=linewidth) 
+        if slots.size > 0 :
+            # plot the current slots hexes as yellow
+            ix = slots==thisSlot
+            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="yellow", lw=linewidth) 
+        
 
         # fig1 and fig2, lmc paper, 
         #plotLmcHexes(alpha,beta,ax)

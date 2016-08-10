@@ -23,7 +23,7 @@ license="""
 """
 
 # tru cmap = gray_r
-def plot(x, y, vals, gridsize=100, save=False, file="", vmin="", vmax="", cmap="jet") :
+def plot(x, y, vals, gridsize=200, save=False, file="", vmin="", vmax="", cmap="jet") :
     if vmin > vals.max() : vmin = ""
     if vmax < vals.min() : vmax = ""
     if vmin == "" and vmax == "":

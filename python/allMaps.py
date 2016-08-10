@@ -301,9 +301,12 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
         quality = 1.0
 
     if not quick :
-        # make observation plots
-        n_plots = getHexObservations.makeObservingPlots(
-            n_slots, trigger_id, best_slot, outputDir, outputDir)
+        if n_slots > 0 :
+            # make observation plots
+            n_plots = getHexObservations.makeObservingPlots(
+                n_slots, trigger_id, best_slot, outputDir, outputDir)
+        else :
+            n_plots = getHexObservations.nothingToObserveShowSomething(trigger_id, outputDir, outputDir)
 
     return best_slot, n_slots, first_slot, econ_prob, econ_area, need_area, quality
 
