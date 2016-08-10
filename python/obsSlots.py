@@ -38,8 +38,9 @@ import os
 #
 def slotCalculations(mjd, exposure_lengths, overhead, hexesPerSlot = 6) :
     tot_exptime = (np.array(overhead)+np.array(exposure_lengths)).sum()
-    slot_time = tot_exptime*nHexes
+    slot_time = tot_exptime*hexesPerSlot
     slot_duration = slot_time/60. ;# in minutes
+    from getHexObservations import hoursPerNight
     hoursAvailable = hoursPerNight(mjd)
     answers = dict()
     answers["slotDuration"] = slot_duration

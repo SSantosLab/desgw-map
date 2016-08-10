@@ -144,7 +144,7 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
 # 
 def probabilityMapSaver (obs, sim, mjd, distance, models, \
         times, probabilities, data_dir, 
-        this_tiling="", rejectHexes="",
+        this_tiling="", reject_hexes="",
         performHexalatationCalculation=True) :
     import hexalate
     import os
@@ -213,12 +213,12 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
             if onlyHexesAlreadyDone != "" :
                 do_these = np.in1d(idHexen, onlyHexesAlreadyDone)
                 do_these = np.nonzero(do_these)
-                raHexen, decHexen, idHexen = 
+                raHexen, decHexen, idHexen = \
                     raHexen[do_these], decHexen[do_these], idHexen[do_these]
-            if rejectHexes != "" :
-                dont_do_these = np.in1d(idHexen, rejectHexes)
+            if reject_hexes != "" :
+                dont_do_these = np.in1d(idHexen, reject_hexes)
                 dont_do_these = np.nonzero(np.invert(dont_do_these))
-                raHexen, decHexen, idHexen = 
+                raHexen, decHexen, idHexen = \
                     raHexen[do_these], decHexen[do_these], idHexen[do_these]
 
             raHexen, decHexen, idHexen, hexVals, rank = \
