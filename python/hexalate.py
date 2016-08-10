@@ -36,7 +36,7 @@ import decam2hp
 #    sm.searchDistance = np.array([distance,])
 #    sm.calculateProb()
 #
-#    hexVals, rank = cutAndHexalate (obs, sm, raHexen, decHexen)
+#    raHex, decHex, idHex, hexVals, rank = cutAndHexalate (obs, sm, raHexen, decHexen)
 
 #
 # Given an obs object and a sm object, along with a map of hex centers,
@@ -45,24 +45,29 @@ import decam2hp
 #
 # domain knowlege- the blanco cuts keep everything inside an hour angle range
 def hexalateNHexes (obs, sm, nHexes, allskyDesHexes) :
-    raHexen, decHexen, hexVals, rank = cutAndHexalate(obs, sm, allskyDesHexes)
+    raHexen, decHexen, idHexen, hexVals, rank = cutAndHexalate(obs, sm, allskyDesHexes)
     raHexen = raHexen[0:nHexes]
     decHexen = decHexen[0:nHexes]
+    idHexen = idHexen[0:nHexes]
     hexVals = hexVals[0:nHexes]
     rank = rank[0:nHexes]
-    return raHexen, decHexen, hexVals, rank
+    return raHexen, decHexen, idHexen, hexVals, rank
 
 # be aware that while most of my ra,dec are in degrees,
 # those in obs and sm are in radians
 def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
+    raHexen, decHexen, idHexen = getHexCenters(allskyDesHexes)
+    raHexen, decHexen, idHexen, hexVals, rank = cutAndHexalateOnRaDec(
+        obs, sm, raHexen, decHexen, idHexen)
+    return raHexen, decHexen, idHexen, hexVals, rank
+
+def cutAndHexalateOnRaDec (obs, sm, raHexen, decHexen, idHexen) :
     verbose = False
     obsHourAngle = obs.ha*360./(2*np.pi)
     obsRa        = obs.ra*360./(2*np.pi)
     obsDec       = obs.dec*360./(2*np.pi)
     # based on blanco horizen limits
     ix = (abs(obsHourAngle) <= 83. ) & (obsDec < 43.)
-
-    raHexen, decHexen = getHexCenters (allskyDesHexes)
     ix2 = decHexen < 43.
 
     probabilities = obs.map*sm.probMap
@@ -76,10 +81,26 @@ def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
         print "hexVals max", hexVals.max()
     rank=np.argsort(hexVals); 
     rank = rank[::-1];# sort from large to small by flipping natural argsort order
-    return raHexen, decHexen, hexVals, rank
+    return raHexen, decHexen, idHexen, hexVals, rank
 
 def getHexCenters (allskyDesHexes = "../data/all-sky-hexCenters.txt") :
     ra,dec = np.genfromtxt(allskyDesHexes, unpack=True, \
         usecols=(0,1),comments="#")
-    return ra,dec
+    hex_id = getHexId(ra,dec)
+    return ra,dec,hex_id
+
+#
+# a modified DES convention: just rounded ra,dec with + or - sign
+# of type "24-31", "179+10"
+def getHexId(ra, dec) :
+    intra = np.round(ra)
+    intdec = np.abs(np.round(dec));
+    sign=np.full(ra.size, "+",dtype="str");
+    ix = dec < 0; sign[ix]="-";
+    id = np.array([]),dtype="str")
+    for i in range(0,ra.size) :
+        name = str(np.int(intra[i])) + sign[i] + str(np.int(intdec[i]))
+        id = np.append(id, name)
+    return id
+
 

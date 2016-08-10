@@ -17,7 +17,7 @@ def plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax) :
     footprint = matplotlib.path.Path(zip(x,y))
     patch = matplotlib.patches.PathPatch(footprint, facecolor='gold', lw=1, alpha=0.066, fill=True)
     ax.add_patch(patch)
-    patch = matplotlib.patches.PathPatch(footprint, edgecolor='gold', lw=1, alpha=2, fill=False)
+    patch = matplotlib.patches.PathPatch(footprint, edgecolor='gold', lw=1, alpha=1, fill=False)
     #patch = matplotlib.patches.PathPatch(footprint, edgecolor='gold', lw=1, alpha=0.33, fill=False)
     ax.add_patch(patch)
     
@@ -50,15 +50,13 @@ def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec,
     scale = 1.
     redRa = 90.
 
-    raMid = 90. ;# GW150914
     raMid = -1000
-    raMid = 30.  ;# Christmas event
     #raBoxSize = 0.
     #decBoxSize = 16.
     #mod_ra = -12
     #mod_dec = 5
     mod_ra = 0; mod_dec=3; raBoxSize=15; decBoxSize=15
-    raBoxSize=35.  ;# Christmas event
+    raBoxSize=60
 
     low_limit = 21.; high_limit=23.8
     if doStars :
@@ -206,8 +204,6 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
     #plt.axes().set_frame_on(False); 
     plt.axes().set_xticks([]); 
     plt.axes().set_yticks([])
-
-
 
     plt.show()
 
@@ -359,8 +355,7 @@ def plotLigoContours(x,y, vals, color="w", alpha = 1.0, lw=0.66, ls="solid", lab
         inline= False
         fontsize =10
         fontsize =14
-        plt.clabel(ct, levels1, inline=inline, fontsize=fontsize)
-        plt.clabel(ct, levels2, inline=inline, fontsize=fontsize)
+        plt.clabel(ct, levels, inline=inline, fontsize=fontsize)
 
 def confidenceLevels(map) :
     map = np.array(map, copy=True)

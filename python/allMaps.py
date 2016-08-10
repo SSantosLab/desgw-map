@@ -155,28 +155,73 @@ def vidi(sims, mjds, distances, models, do2015=True, quick=True) :
         counter += 1
         #if counter >= 21 : raise Exception("im done here")
         
-def mainInjector (trigger_id, skymap, mjd, distance, \
-        outputDir, recycler_mjd=57350.0, quick=False) :
+#
+# trigger_type = "NS" or "BH"
+#
+def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
+        outputDir, recycler_mjd=57350.0, \
+        hexID_to_do=[], hexID_to_reject=[], 
+        hours_used_by_NS=0, hours_used_by_BH=0,
+        quick=False) :
 
     import os
     import yaml
     import getHexObservations
+
     with open("maininjector.yaml","r") as f:
         config = yaml.safe_load(f); 
 
-    exposure_length = config["exposure_length"]
-    filter_list     = config["exposure_filter"]
-    overhead        = config["overhead"]
-    maxHexesPerSlot = config["maxHexesPerSlot"]
-    hoursAvailable  = config["time_budget"]
-    maxHexesPerSlot = config["maxHexesPerSlot"]
-    nvisits         = config["nvisits"]
-    area_per_hex    = config["area_per_hex"]
-    start_of_season = config["start_of_season"]
-    end_of_season   = config["end_of_season"]
-    # a hack for  first season, surely we have a better rate?
-    events_observed = config["events_observed"]
-    exposure_length = np.array(exposure_length)
+    # season parameters
+    start_of_season   = config["start_of_season"]
+    end_of_season     = config["end_of_season"]
+
+    # static observation details
+    overhead          = config["overhead"]
+    area_per_hex      = config["area_per_hex"]
+
+    # strategy
+    exposure_length_ns= config["exposure_length_NS"]
+    filter_list_ns    = config["exposure_filter_NS"]
+    maxHexesPerSlot_ns= config["maxHexesPerSlot_NS"]
+    exposure_length_bh= config["exposure_length_BH"]
+    filter_list_bh    = config["exposure_filter_BH"]
+    maxHexesPerSlot_bh= config["maxHexesPerSlot_BH"]
+
+    # economics analysis for NS and for BH
+    hoursAvailable_ns = config["time_budget_for_NS"]
+    hoursAvailable_bh = config["time_budget_for_BH"]
+    lostToWeather_ns  = config["hours_lost_to_weather_for_NS"]
+    lostToWeather_bh  = config["hours_lost_to_weather_for_BH"]
+    rate_bh           = config["rate_of_bh_in_O2"];# events/day
+    rate_ns           = config["rate_of_ns_in_O2"];# events/day
+
+
+    # configure strategy for the event type
+    if trigger_type == "NS" :
+        hoursAvailable       = hoursAvailable_ns - lostToWeather_ns - hours_used_by_NS
+        rate                 = rate_ns
+        exposure_length      = exposure_length_ns
+        filter_list          = filter_list_ns
+        maxHexesPerSlot      = maxHexesPerSlot_ns
+        nepochs           = config["nepochs_NS"]
+        epochs = np.array([])
+        for i in range (0,nepochs) :
+            epochs        = np.append(epochs, config["epoch{}_NS".format(i)])
+        end_date          = config["enddate_NS"]
+    elif trigger_type == "BH" :
+        hoursAvailable       = hoursAvailable_bh - lostToWeather_bh - hours_used_by_BH
+        rate                 = rate_bh
+        exposure_length      = exposure_length_bh
+        filter_list          = filter_list_bh 
+        maxHexesPerSlot      = maxHexesPerSlot_bh
+        nepochs           = config["nepochs_BH"]
+        epochs = np.array([])
+        for i in range (0,nepochs) :
+            epochs        = np.append(epochs, config["epoch{}_BH".format(i)])
+        end_date          = config["enddate_BH"]
+    else :
+        raise Exception("trigger_type={}  ! Can only compute BH or NS".format(trigger_type))
+    exposure_length   = np.array(exposure_length)
     
     if not os.path.exists(outputDir):
         os.makedirs(outputDir)
@@ -192,6 +237,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
         skymap, mjd, trigger_id, outputDir, outputDir, distance=distance,
         exposure_list=exposure_length, filter_list=filter_list,
         overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
+        this_tiling = hexID_to_do, reject_hexes = hexID_to_reject, 
         skipAll=skipAll, resolution=resolution)
         #skipHexelate=True, skipAll=False)
                 
@@ -204,18 +250,17 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
     best_slot = getHexObservations.now( 
         n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
         maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
-        exposure_list=exposure_length, filter_list=filter_list, skipJson =True)
+        exposure_list=exposure_length, filter_list=filter_list, 
+        trigger_type = trigger_type, skipJson =True)
 
     if n_slots > 0 :
-#   area_left is th enumber of hexes we have left to observe this season
+#   area_left is the number of hexes we have left to observe this season
 #   T_left is the number of days left in the season
 #   rate is the effective rate of triggers
 #
-        time_cost_per_hex = nvisits * np.sum(overhead + exposure_length) #sec 
+        time_cost_per_hex = nepochs * np.sum(overhead + exposure_length) #sec 
         area_left =  area_per_hex * (hoursAvailable * 3600)/(time_cost_per_hex)
         time_left = end_of_season - start_of_season
-        # Shin-yu is there a better rate?
-        rate = len(events_observed)/(recycler_mjd-start_of_season)
 
         # do Hsun-yu Chen's 
         print "======================================>>>>>>>>>>>>>>>>>>"
@@ -247,7 +292,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, \
                 n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
                 maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
                 exposure_list=exposure_length, filter_list=filter_list, 
-                skipJson =skipJson)
+                trigger_type = trigger_type, skipJson =True)
     else :
         econ_prob = 0
         econ_area = 0

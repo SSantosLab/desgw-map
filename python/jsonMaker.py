@@ -25,10 +25,11 @@ import numpy as np
 # This code wants a list ra,decs and will write a JSON file
 # to cause the Blanco to observe them.
 #
-def writeJson(ra,dec, seqid="none", seqnum=0, seqtot=0,
+def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
         exposureList = [90,90,90], 
         filterList = ["i","z","z"],
         tilingList = [9,9,9], 
+        trigger_type = "NS",
         jsonFilename="des-gw.json") :
     offsets = tileOffsets()
     fd = open(jsonFilename,"w")
@@ -50,12 +51,8 @@ def writeJson(ra,dec, seqid="none", seqnum=0, seqtot=0,
             tdec = dec[i]
             tdec = tdec+delDec
             tra = tra + delRa/np.cos(tdec*2*np.pi/360.)
-            comment = "DESGW: LIGO event {}: {} of {}".format(seqid, seqnum, seqtot)
-            intra = np.int(np.round(np.int(ra[i]*10.)/10.)*10.)
-            intdec = np.int(np.round(np.int(dec[i]*10.)/10.)*10.)
-            signDec = "+"; 
-            if tdec < 0: signDec = "-"
-            object = "DESGW: LIGO event {}: {} of {}".format(seqid, seqnum, seqtot)
+            comment = "DESGW: LIGO {} event {}: {} of {}, hex {}".format(trigger_type, seqid, seqnum, seqtot, id)
+            object = comment
 
             fd.write("{")
             fd.write(" \"expType\" : \"object\",\n")
@@ -71,6 +68,7 @@ def writeJson(ra,dec, seqid="none", seqnum=0, seqtot=0,
             fd.write("  \"program\" : \"des gw\",\n")
             fd.write("  \"RA\" : {:.6f},\n".format(tra))
             fd.write("  \"dec\" : {:.5f},\n".format(tdec))
+            fd.write("  \"propid\" : {},\n".format("2015B-0187"))
             fd.write("  \"comment\" : \"{}\"\n".format(comment)) 
             # note lack of comma for end
             fd.write("}")

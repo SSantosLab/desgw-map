@@ -144,14 +144,13 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
 # 
 def probabilityMapSaver (obs, sim, mjd, distance, models, \
         times, probabilities, data_dir, 
-        onlyHexesAlreadyDone="", performHexalatationCalculation=True) :
+        this_tiling="", rejectHexes="",
+        performHexalatationCalculation=True) :
     import hexalate
     import os
-    gw_data_dir          = os.environ["DESGW_DATA_DIR"]
     # one reads the tiling 9 hex centers as that is our default position
+    gw_data_dir          = os.environ["DESGW_DATA_DIR"]
     hexFile = gw_data_dir + "all-sky-hexCenters-tiling9.txt"
-    if onlyHexesAlreadyDone != "" :
-        hexFile = onlyHexesAlreadyDone
 
     counter = -1
     for time,prob  in zip(times, probabilities) :
@@ -210,17 +209,29 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         hp.write_map(name, sm.probMap)
 
         if performHexalatationCalculation :
-            raHexen, decHexen, hexVals, rank = hexalate.cutAndHexalate (
-                obs, sm, hexFile)
+            raHexen, decHexen, idHexen = hexelate.getHexCenters(hexFile)
+            if onlyHexesAlreadyDone != "" :
+                do_these = np.in1d(idHexen, onlyHexesAlreadyDone)
+                do_these = np.nonzero(do_these)
+                raHexen, decHexen, idHexen = 
+                    raHexen[do_these], decHexen[do_these], idHexen[do_these]
+            if rejectHexes != "" :
+                dont_do_these = np.in1d(idHexen, rejectHexes)
+                dont_do_these = np.nonzero(np.invert(dont_do_these))
+                raHexen, decHexen, idHexen = 
+                    raHexen[do_these], decHexen[do_these], idHexen[do_these]
+
+            raHexen, decHexen, idHexen, hexVals, rank = \
+                hexalate.cutAndHexalateOnRaDec ( obs, sm, raHexen, decHexen, idHexen)
 
             # where rank is to be understood as the indicies of the
             # ranked hexes in order; i.e., they have nothing to do with
             # raHexen, decHexen, hexVals except as a sorting key
             name = nameStem + "-hexVals.txt"
             if os.path.exists(name): os.remove(name)
-            data = np.array([raHexen, decHexen, hexVals, 
+            data = np.array([raHexen, decHexen, idHexen, hexVals, 
                 rank, (rank*0)+(mjd+time)])
-            np.savetxt(name,data.T,"%.6f, %.5f, %.4e, %d, %.4f")
+            np.savetxt(name,data.T,"%.6f, %.5f, %s, %.4e, %d, %.4f")
 
     
 

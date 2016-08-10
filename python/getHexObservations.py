@@ -1,6 +1,7 @@
 import numpy as np
 import jsonMaker
 import os
+import obsSlots
 #
 #       the routine mapsAtTimeT.oneDayOfTotalProbability
 #           breaks the night into slots of 32 minutes duration
@@ -10,8 +11,8 @@ import os
 #           once told how many slots can be used
 #           returns "hoursObserving" containing ra,dec,prob,time
 #               of the hexes to observe each slot
-#       the routine getHexObservations.observingStats
-#           places the ra,dec,prob,times per slot onto single  lists
+#       the routine obsSlots.observingStats
+#           places the ra,dec,id,prob,times per slot onto single  lists
 #           tells sum(prob) on the list
 #       the routine getHexObservations.observingPlot
 #           needs to be told simNumber, "slot", data_dir, nslots
@@ -61,7 +62,8 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
         distance=60., exposure_list = [90,], filter_list=["i",],
         overhead=30., maxHexesPerSlot=6,
         start_mjd = 0, skipHexelate=False, skipAll=False, 
-        onlyHexesAlreadyDone="", 
+        this_tiling = "", reject_hexes = "",
+        !! onlyHexesAlreadyDone="", 
         saveHexalationMap=True, doOnlyMaxProbability=False, resolution=256) :
     import mapsAtTimeT
     import mags
@@ -77,8 +79,8 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
     ix = filter_list == "i"
     exposure_length = exposure_list[ix].sum()
 
-    answers = slotCalculations( burst_mjd, exposure_list, overhead, 
-        nHexes=maxHexesPerSlot) 
+    answers = obsSlots.slotCalculations( burst_mjd, exposure_list, overhead, 
+        hexesPerSlot=maxHexesPerSlot) 
     hoursPerNight = answers["hoursPerNight"] ;# in minutes
     slotDuration = answers["slotDuration"] ;# in minutes
     deltaTime = slotDuration/(60.*24.) ;# in days
@@ -129,7 +131,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
 
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, burst_mjd, \
         distance, models, times, probs,mapDir, \
-        onlyHexesAlreadyDone=onlyHexesAlreadyDone, 
+        this_tiling = this_tiling, reject_hexes = reject_hexes,
         performHexalatationCalculation=saveHexalationMap)
     return probs, times, slotDuration, hoursPerNight
 
@@ -152,7 +154,7 @@ def contemplateTheDivisionsOfTime(
     if np.size(times) == 0 : return 0,0
     if probs.sum() < 1e-9 : return 0,0
     verbose = 0
-    n_slots = findNSlots(hoursAvailable,slotDuration=slotDuration)
+    n_slots = obsSlots.findNSlots(hoursAvailable,slotDuration=slotDuration)
     n_maps = times.size
     if verbose: print n_slots, n_maps
     if n_maps == n_slots : 
@@ -161,7 +163,7 @@ def contemplateTheDivisionsOfTime(
         mapZero = 0
         n_slots = n_maps
     elif n_maps > n_slots :
-        mapZero = findStartMap ( probs, times, n_slots )
+        mapZero = obsSlots.findStartMap ( probs, times, n_slots )
     else :
         raise Exception ("no possible way to get here")
     print "=============>>>>  contemplateTheDivisionsOfTime:"
@@ -176,6 +178,11 @@ def contemplateTheDivisionsOfTime(
 #
 #   skipJson does just that, speeding the routine up considerably
 #
+#   this_tiling and reject_hexes are inverse in thier effect:
+#   only hexes within 36" of the ra,decs of the centers of this_tiling
+#   are to be observed, while hexes wihtin within 36" of the ra,decs
+#   of the centers of reject_hexes are skipped
+#
 #   if a doneFile is given, which should be
 #   something with ra,dec in columns 1,2, like 
 #       G184098-ra-dec-prob-mjd-slot.txt
@@ -186,28 +193,28 @@ def contemplateTheDivisionsOfTime(
 def now(n_slots, mapDirectory="jack/", simNumber=13681, 
         mapZero=0, maxHexesPerSlot=5, 
         exposure_list = [90,90,90], filter_list=["i","z","z"],
-        doneFile = "", skipJson = False ) :
+        trigger_type = "NS", skipJson = False ) :
     # if the number of slots is zero, nothing to observe or plot
     if n_slots == 0: 
         return 0
     # compute the observing schedule
     print "=============>>>>  now: observing"
-    hoursObserving=observing(
+    hoursObserving=obsSlots.observing(
         simNumber,n_slots,mapDirectory, mapZero=mapZero,
-        maxHexesPerSlot = maxHexesPerSlot, doneFile=doneFile)
+        maxHexesPerSlot = maxHexesPerSlot)
     # print stats to screen
     print "=============>>>>  now: observingStats"
-    ra,dec,prob,mjd,slotNumbers,islots = observingStats(hoursObserving)
+    ra,dec,id,prob,mjd,slotNumbers,islots = obsSlots.observingStats(hoursObserving)
     # save results to the record
-    observingRecord(hoursObserving, simNumber, mapDirectory)
+    obsSlots.observingRecord(hoursObserving, simNumber, mapDirectory)
     # write jsons and get slot number  of maximum probability
-    maxProb_slot = maxProbabilitySlot(prob,slotNumbers)
+    maxProb_slot = obsSlots.maxProbabilitySlot(prob,slotNumbers)
     if not skipJson :
         print "=============>>>>  now: JSON"
         turnObservingRecordIntoJSONs(
-            ra,dec,prob,mjd,slotNumbers, simNumber, 
+            ra,dec,id,prob,mjd,slotNumbers, simNumber, 
             exposure_list=exposure_list, filter_list=filter_list, 
-            mapDirectory=mapDirectory) 
+            trigger_type=trigger_type, mapDirectory=mapDirectory) 
 
     return maxProb_slot
 
@@ -282,7 +289,7 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
     if nslots == 0 : return 0
 
     # first, make the probability versus something plot
-    ra,dec,prob,slotMjd,slotNumbers = readObservingRecord(
+    ra,dec,id,prob,slotMjd,slotNumbers = obsSlots.readObservingRecord(
         simNumber, mapDirectory)
 
     probabilityPlot(figure, prob, slotNumbers, simNumber, data_dir) 
@@ -377,400 +384,12 @@ def hoursPerNight (mjd) :
     return night
 
 
-# These calculations used to be spread over hither and yon.
-# Bring them together.
-#
-#    deltaTime = 0.0223  => 32 minute slots  for izzi 90sec exp, 4 hex/slot
-#    deltaTime = 0.0446  => 62 minute slots  for izzi 90sec exp, 8 hex/slot
-#    deltaTime = 0.0417  => 60 minute slots  for izz 90sec exp, 10 hex/slot
-#    deltaTime = 0.0208  => 30 minute slots  for izz 90sec exp,  5 hex/slot
-#       The first is flexible to observing conditions,
-#       while the second is x2 faster as there are less maps to hexalate
-#       The third shows a different tiling/filter complement
-
-# Let us redfine this: a slot is the length of time it takes
-# to do 6 hexes to completion. That is usually somewhere between 30 minutes
-# and one hour, so close to the original defintion, and by force is an
-# even number of hexes. Ok. Use n=6 for the forcing definition
-def slotCalculations(mjd, exposure_lengths, overhead, nHexes = 6) :
-    tot_exptime = (np.array(overhead)+np.array(exposure_lengths)).sum()
-    slot_time = tot_exptime*nHexes
-    slot_duration = slot_time/60. ;# in minutes
-    hoursAvailable = hoursPerNight(mjd)
-    answers = dict()
-    answers["slotDuration"] = slot_duration
-    answers["hoursPerNight"] = hoursAvailable
-    return answers
-
-#SHOULD NOT BE NEEDED ANYMORE - DILLON DEC 7TH
-'''def eventName(data_dir, event) :
-    name=os.path.join(data_dir,str(event))
-    return name
-'''
-# find the number of slots per night
-def findNSlots(hoursAvailable, slotDuration=32.) :
-    verbose = 0
-    if verbose:
-        print hoursAvailable
-        print hoursAvailable*60./slotDuration, round(hoursAvailable*60./slotDuration)
-        print int(round(hoursAvailable*60./slotDuration))
-    nslots = int(round(hoursAvailable*60./slotDuration))   ;# 32 minutes/slot
-    return nslots
-
-# ok, I designed observing for the case
-#   where the number of slots in a night
-#   was equal to the number of maps made.
-# This is unrealist for two reasons:
-#   the night could be longer than the time desgw wishes to allocate
-#   the object could be up for less than the time desgw could allocate
-# so:
-    # possibilities
-    # n_maps = n_slots     design case
-    # n_maps < n_slots     set n_slots = n_maps
-    # n_maps > n_slots     pick highest contiguous set of n_slot maps
-# the first two are easy. 
-# the third runs into the naming convention of the maps
-def findStartMap ( probs, times, n_slots ) :
-    n_maps = times.size
-    mapNums = np.arange(0,n_maps)
-    # sum the probability in each allowed nslot range
-    n_mapsToTProb = np.array([])
-    n_mapStart = np.array([])
-    for map in range(0,n_maps-n_slots) :
-        ix = (mapNums >= map) & (mapNums < map+n_slots)
-        n_mapsToTProb = np.append(n_mapsToTProb, probs[ix].sum() )
-        n_mapStart = np.append(n_mapStart, map)
-    minToMax = np.argsort(n_mapsToTProb)
-    bestStart = n_mapStart[minToMax[-1]]
-    bestStart = int(bestStart)
-    return bestStart
-
-
-# Load all n -hexVals files,
-#   pick the highest probability one, 
-#   put it into one of the n slots, unless that slots is maxed out
-#   remove that hex from all the hexVals lists
-#   do it again, untill all n time slots are full.
-#       maxHexesPerSlot=4 comes from 32 minute duration slots
-#       and 8 minutes/hex (izzi 2 min/image)
-#
-#   if we do zzi at 2 mins/image then 4 min/hex + 2 min/hex2 = 6 mins
-#   call it 60 minute slots  and 10 hexes/slot
-def observing(sim, nslots, data_dir, 
-        maxHexesPerSlot = 4, mapZero = 0, verbose=0,
-        doneFile = "jack2/G184098-ra-dec-prob-mjd-slot.txt") :
-    # prep the observing lists
-    observingSlots = np.arange(0,nslots)
-    slotsObserving = dict()
-    slotsObserving["nslots"] = nslots
-    for i in observingSlots :
-        slotsObserving[i] = 0
-        slotsObserving[i,"ra"]   = np.array([])
-        slotsObserving[i,"dec"]  = np.array([])
-        slotsObserving[i,"prob"] = np.array([])
-        slotsObserving[i,"mjd"] = np.array([])
-        slotsObserving[i,"slotNum"] = np.array([]) ;#non-zero prob slots
-        slotsObserving[i,"islot"] = np.array([]) ;# range(0,nslots)
-
-    # read in the hexelated probability data
-    hexData = dict()
-    for i in observingSlots :
-        map_i = i + mapZero
-        raHexen, decHexen, hexVal, rank, mjd, slotNum = \
-           loadHexalatedProbabilities( sim, map_i, data_dir)
-        if doneFile != "" :
-            raHexen, decHexen, hexVal, rank, mjd, slotNum = \
-                eliminateHexesAlreadyDone(doneFile, 
-                raHexen, decHexen, hexVal, rank, mjd, slotNum )
-        islot = i*np.ones(raHexen.size)
-        print "\t", map_i, "map size= {};".format(raHexen.size), 
-
-        impossible = 1e-12
-        impossible = 1e-7
-        ix = np.nonzero(hexVal < impossible)
-        raHexen, decHexen, hexVal, mjd, slotNum, islot  = \
-            np.delete(raHexen, ix), \
-            np.delete(decHexen, ix), \
-            np.delete(hexVal, ix), \
-            np.delete(mjd, ix) , \
-            np.delete(slotNum, ix), \
-            np.delete(islot, ix)
-        print " n hexes >{} probability=".format(str(impossible)),
-        print "{:4d};".format(raHexen.size),
-        print "  sum prob= {:7.4f} %".format( 100*hexVal.sum())
-        hexData[i] = raHexen, decHexen, hexVal, mjd, slotNum, islot
-        #print np.sort(hexVal), hexVal.sum(), 100.*hexVal.sum(),"%"
-
-    # start the search for all max probabilities
-    # we'll assume the list is less than 40,000 long, the n-sq-degrees/sky
-    for n in range(0,40000) :
-        # search for a single max probabilities
-        maxRa, maxDec, maxProb, maxMjd, maxSlotNum, maxIslot  = \
-            findMaxProbOfAllHexes(hexData, observingSlots, n, verbose) 
-        maxData = maxRa,maxDec,maxProb,maxMjd,maxSlotNum, maxIslot
-
-        # we've found the maximum probability on the lists, 
-        # so add it to the obs lists # unless not possible. 
-        # If the latter, delete it from that slot
-        slot = maxIslot
-        if slotsObserving[slot] < maxHexesPerSlot : 
-            # it is possible to make the observation, 
-            # put it onto the observing lists
-            slotsObserving = addObsToSlot (slotsObserving, maxData, slot)
-            if verbose >= 1: print n, "slot of max:",slot
-        else :
-            # but if this slot of observing is full, it is not possible 
-            # to make the observation,
-            # so move on AFTER deleting it from the list
-            hexData = deleteHexFromSlot (hexData, slot, maxProb) 
-        #if verbose >= 2: 
-        #   if n > 7: raise Exception("jack")
-    
-        # perform the necessary bookkeeping, 
-        # eliminating this hex from future observing
-        hexData = deleteHexFromAllSlots (
-            hexData, observingSlots, maxRa, maxDec, verbose, n) 
-
-        # do some summary statistics
-        sumHexes = 0
-        sumObs = 0
-        for i in range(0,nslots) :
-            sumHexes += hexData[i][0].size
-            sumObs += slotsObserving[i]
-
-        if verbose >= 2: 
-            print "sumHexes =", sumHexes, 
-            print "   slots left=", len(observingSlots),
-            print "   slots=",observingSlots,
-            print "   n_obs=",
-            for i in observingSlots:
-                print slotsObserving[i],
-            print "   sum prob= ",
-            for i in observingSlots:
-                print " {:8.6f}".format( slotsObserving[i,"prob"].sum()) ,
-            print ""
-
-        # eliminate full observing slots
-        observingSlots = eliminateFullObservingSlots(\
-            hexData, slotsObserving, observingSlots, maxHexesPerSlot, verbose) 
-
-        # check and see if we are done
-        # two conditions: observing is full, or candidates empty
-        if (len(observingSlots)==0) | (sumHexes == 0) :
-            print "\t======================================== "
-            if verbose >= 1: 
-                print "n slots =", len(observingSlots)," == 0?"
-                print "sumHexes = ", sumHexes, "==? 0"
-            print "\tnumber of hexes observed = ", sumObs
-            print "\t======================================== "
-            return slotsObserving 
-
-        # otherwise, go back and do it again
-    
-    # we've done everything on the lists, we can observe it all,
-    # return this great success that will never be reached.
-    return slotsObserving
-    
-#
-# examine the statistics of the observing lists
-#
-def observingStats( slotsObserving ) :
-    nslots = slotsObserving["nslots"]
-    for i in range(0,nslots) :
-        print "\t",i, 
-        #print "slotnum={} ".format( slotsObserving[i,"slotNum"]),
-        print "n obs= {}".format( slotsObserving[i,"ra"].size), 
-        print "  sum prob= {:7.4f} %".format( 100*slotsObserving[i,"prob"].sum())
-    ra,dec,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
-
-    print "\tobservingStats:  ",
-    print "observable prob_tot = {:.1f}%".format(100.*prob.sum())
-    return ra,dec,prob,mjd,slotNum,islot
-
-def observingRecord(slotsObserving, simNumber, data_dir) :
-    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-prob-mjd-slot.txt")
-    ra,dec,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
-    data = np.array([ra, dec, prob, mjd, slotNum]).T
-    np.savetxt(name, data, "%.6f %.5f %.6f %.4f %d")
-    return ra,dec,prob,mjd,slotNum
-
-#     ra,dec,prob,mjd,slotNum,islot = readObservingRecord(simNumber, data_dir)
-def readObservingRecord(simNumber, data_dir) :
-    import os
-    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-prob-mjd-slot.txt")
-    if not os.path.exists(name) :
-        ra,dec,prob,mjd,slotNum = \
-            np.array(0),np.array(0),np.array(0), \
-            np.array(0),np.array(0)
-    else :
-        ra,dec,prob,mjd,slotNum = np.genfromtxt(name,unpack=True,comments="#")
-    return ra,dec,prob,mjd,slotNum
-
-def slotsObservingToNpArrays(slotsObserving) :
-    nslots = slotsObserving["nslots"]
-    ra = np.array([])
-    dec = np.array([])
-    prob = np.array([])
-    mjd = np.array([])
-    slotNum = np.array([])
-    islot = np.array([])
-    for i in range(0,nslots) :
-        ra = np.append(ra, slotsObserving[i,"ra"])
-        dec = np.append(dec, slotsObserving[i,"dec"])
-        prob = np.append(prob, slotsObserving[i,"prob"])
-        mjd = np.append(mjd, slotsObserving[i,"mjd"])
-        slotNum = np.append(slotNum, slotsObserving[i,"slotNum"])
-        islot = np.append(islot, slotsObserving[i,"islot"])
-    return ra,dec,prob,mjd,slotNum,islot
-    
-
 #===================================================================
 #
-# Read in all of the hexalated probability files
-#
-def loadHexalatedProbabilities(sim, slot, data_dir) :
-    nameStem = os.path.join(data_dir, str(sim) + "-{}".format(str(slot)))
-    name = nameStem + "-hexVals.txt"
-    raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, delimiter=",")
-    slots = np.ones(raHexen.size)*slot
-    return raHexen, decHexen, hexVal, rank, mjd, slots
-
-# ra,dec of the already done file should be in cols 1,2 (1-based)
-# as in G184098-ra-dec-prob-mjd-slot.txt
-def eliminateHexesAlreadyDone(infile, ra, dec, hexVal, rank, mjd, slots) :
-    doneRa, doneDec = np.genfromtxt(infile, unpack=True, usecols=(0,1))
-    mask = np.ones(len(ra), dtype=bool)
-    for i in range(0,doneRa.size) :
-        cosdec = np.cos(doneDec[i]*np.pi/180)
-        # within 36" of each other
-        ix = ( ((doneRa[i]-ra)/cosdec)**2 + (doneDec[i]-dec)**2) < 0.01
-        mask[ix] = False
-    return ra[mask], dec[mask], hexVal[mask], rank[mask], mjd[mask], slots[mask]
-
-def onlyReturnHexesDone(hexRa, hexDec, ra, dec, vals) :
-    mask = np.zeros(len(ra), dtype=bool)
-    for i in range(0,hexRa.size) :
-        cosdec = np.cos(hexDec[i]*np.pi/180)
-        # within 36" of each other
-        ix = ( ((hexRa[i]-ra)/cosdec)**2 + (hexDec[i]-dec)**2) < 0.01
-        mask[ix] = True
-    return ra[mask], dec[mask], vals[mask]
     
-    
-
-#
-# search for the single highest probability hex over all of the possible hexes
-# in the hexData slots 
-#
-def findMaxProbOfAllHexes(hexData, observingSlots, n="", verbose = 0) :
-    maxProb = -1
-    for i in observingSlots :
-        data = hexData[i]
-        hexRa     = data[0]
-        hexDec    = data[1]
-        hexVal    = data[2]
-        hexMjd    = data[3]
-        hexMyslot = data[4]
-        if hexVal.size == 0: continue
-        if verbose >= 2: 
-            if i == 2: print n,"====",i, "hexSize =",hexRa.size
-        # now check for max prob
-        newProb = hexVal.max()
-        if verbose >= 4: print n,i, maxProb, ">?", newProb, "     n=",hexVal.size
-        if newProb > maxProb :
-            if verbose >= 1: print n,"==== new max", i, "       ",newProb , ">", maxProb
-            ix = hexVal == newProb
-            maxRa     = hexRa[ix]
-            maxDec    = hexDec[ix]
-            maxVal    = hexVal[ix]
-            maxMjd    = hexMjd[ix]
-            maxProb   = newProb
-            maxSlot   = hexMyslot[ix]
-            islot = i
-    if maxProb == -1 : 
-        raise Exception("no max probability found")
-    return maxRa, maxDec, maxVal, maxMjd, maxSlot, islot
-
-# we've found a hex,slot that can be observed so add it the the observing lists
-def addObsToSlot (slotsObserving, maxData, slot) :
-    maxRa  = maxData[0]
-    maxDec = maxData[1]
-    maxVal = maxData[2]
-    maxMjd = maxData[3]
-    maxSlotNum = maxData[4]
-    maxIslot = maxData[5]
-    slotsObserving[slot,"ra"]   =  np.append(slotsObserving[slot,"ra"], maxRa)
-    slotsObserving[slot,"dec"]  =  np.append(slotsObserving[slot,"dec"], maxDec)
-    slotsObserving[slot,"prob"] =  np.append(slotsObserving[slot,"prob"], maxVal)
-    slotsObserving[slot,"mjd"]   =  np.append(slotsObserving[slot,"mjd"], maxMjd)
-    slotsObserving[slot,"slotNum"]   =  np.append(slotsObserving[slot,"slotNum"], maxSlotNum)
-    slotsObserving[slot,"islot"]   =  np.append(slotsObserving[slot,"islot"], maxIslot)
-    slotsObserving[slot] += 1
-    return slotsObserving
-# there can be no more observing in this slot, so this hex,slotj
-# is impossible, delete it from the list.
-def deleteHexFromSlot (hexData, slot, maxProb) :
-    hexRa, hexDec, hexVal, hexMjd, hexSlotNum, hexIslot = hexData[slot] 
-    ix = np.nonzero(hexVal == maxProb) 
-    hexRa  = np.delete(hexRa, ix)
-    hexDec = np.delete(hexDec, ix)
-    hexVal = np.delete(hexVal, ix)
-    hexMjd = np.delete(hexMjd, ix)
-    hexSlotNum = np.delete(hexSlotNum, ix)
-    hexIslot   = np.delete(hexIslot, ix)
-    hexData[slot] = hexRa, hexDec, hexVal, hexMjd, hexSlotNum, hexIslot
-    return hexData
-# the hex,slot has made it onto an observing list, so remove the hex
-# from all hex lists ( rm hex,*)
-def deleteHexFromAllSlots (hexData, observingSlots, maxRa, maxDec, verbose=0, n="") :
-    for i in observingSlots:
-        data = hexData[i]
-        hexRa  = data[0]
-        hexDec = data[1]
-        hexVal = data[2]
-        hexMjd = data[3]
-        hexSlotNum = data[4]
-        hexIslot   = data[5]
-        ix = np.nonzero((hexRa == maxRa) & (hexDec == maxDec))
-        if verbose >=4 : print ix, hexRa, maxRa
-        if verbose >=2 : 
-            ixs = np.shape(ix)[1]
-            print n,"bookkeeping",i,"  nHex=",hexRa.size, "   ix.size", ixs, 
-        hexRa  = np.delete(hexRa, ix)
-        hexDec = np.delete(hexDec, ix)
-        hexVal = np.delete(hexVal, ix)
-        hexMjd = np.delete(hexMjd, ix)
-        hexSlotNum = np.delete(hexSlotNum, ix)
-        hexIslot   = np.delete(hexIslot, ix)
-        hexData[i] = hexRa, hexDec, hexVal, hexMjd, hexSlotNum, hexIslot
-
-        if verbose >= 2: 
-            print "\t after delete nHex=",hexRa.size,
-            if ixs > 0 : print "index = ",ix[0][0]
-            else: print ""
-    return hexData
-
-# it is useful to remove full observing slots from further processing,
-# though they survive to be returned in the final lists
-def eliminateFullObservingSlots(
-        hexData, slotsObserving, observingSlots, maxHexesPerSlot, verbose) :
-    full = []
-    for i in range(0,len(observingSlots)):
-        # either we've observed as much as we can, or there is nothing to see
-        slot = observingSlots[i]
-        if (slotsObserving[slot] >= maxHexesPerSlot) | (hexData[slot][0].size ==0): 
-            full.append(i)
-    if verbose >= 2: 
-        print "hiding full observing slot ", 
-        for f in full: print observingSlots[f],
-        print ""
-    observingSlots = np.delete(observingSlots, full)
-    return observingSlots
-
-
 def turnObservingRecordIntoJSONs(
-        ra,dec,prob,mjd,slotNumbers, simNumber, 
-        exposure_list, filter_list, mapDirectory) :
+        ra,dec,id,prob,mjd,slotNumbers, simNumber, 
+        exposure_list, filter_list, trigger_type, mapDirectory) :
     seqtot =  ra.size
     seqzero = 0
 
@@ -779,26 +398,13 @@ def turnObservingRecordIntoJSONs(
         ix = slotNumbers == slot
         slotMJD = mjd[ix][0]  ;# just get first mjd in this slot
         tmpname, name = jsonUTCName(slot, slotMJD, simNumber, mapDirectory)
-        jsonMaker.writeJson(ra[ix],dec[ix], 
+        jsonMaker.writeJson(ra[ix],dec[ix],id[ix],
             simNumber, seqzero, seqtot, exposureList= exposure_list, 
-            filterList= filter_list, jsonFilename=tmpname)
+            filterList= filter_list, trigger_type, jsonFilename=tmpname)
 
         desJson(tmpname, name, mapDirectory) 
         seqzero =+ ra[ix].size
         
-def maxProbabilitySlot(prob,slotNumbers) :
-    # find slot with the maximum probability
-    maxProb = -1; maxProb_slot = -1
-    for slot in np.unique(slotNumbers) :
-        ix = slotNumbers == slot
-        sumProb = prob[ix].sum()
-        if sumProb > maxProb :
-            maxProb = sumProb
-            maxProb_slot = slot
-    maxProb_slot = np.int(maxProb_slot)
-    return maxProb_slot
-
-
 # verbose can be 0, 1=info, 2=debug
 def desJson(tmpname, name, data_dir, verbose = 1) :
     import os
@@ -835,7 +441,7 @@ def jsonName (slot, utcString, simNumber, mapDirectory) :
     return tmpname, name
 
 def jsonFromRaDecFile(radecfile, nslots, slotZero, 
-        hexesPerSlot, simNumber, mjdList, data_dir) :
+        hexesPerSlot, simNumber, mjdList, trigger_type, data_dir) :
     ra,dec = np.genfromtxt(radecfile, unpack=True,usecols=(0,1),comments="#")
 
     seqtot =  ra.size
@@ -857,7 +463,7 @@ def jsonFromRaDecFile(radecfile, nslots, slotZero,
                 simNumber,data_dir)
             jsonMaker.writeJson(slotRa,slotDec, 
                 simNumber, seqzero+(hexesPerSlot*(slot-slotZero)), 
-                seqtot, jsonFilename=tmpname)
+                seqtot, trigger_type, jsonFilename=tmpname)
             desJson(tmpname, name, data_dir) 
             counter = 0
             slot += 1
@@ -868,7 +474,7 @@ def jsonFromRaDecFile(radecfile, nslots, slotZero,
             simNumber,data_dir)
         jsonMaker.writeJson(slotRa,slotDec, 
             simNumber, seqzero+(hexesPerSlot*(slot-slotZero)), 
-            seqtot, jsonFilename=tmpname)
+            seqtot, trigger_type, jsonFilename=tmpname)
         desJson(tmpname, name, data_dir) 
         
 # ==================================
@@ -956,7 +562,7 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     import plotMapAndHex
 
     # get the planned observations
-    ra,dec,prob,mjd,slotNumbers = readObservingRecord(simNumber, data_dir)
+    ra,dec,id,prob,mjd,slotNumbers = obsSlots.readObservingRecord(simNumber, data_dir)
     
     title = "i-band limiting magnitude"
     if extraTitle != "" :
