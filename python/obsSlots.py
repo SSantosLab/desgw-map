@@ -225,7 +225,7 @@ def observingStats( slotsObserving ) :
     return ra,dec,id,prob,mjd,slotNum,islot
 
 def observingRecord(slotsObserving, simNumber, data_dir) :
-    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-prob-mjd-slot.txt")
+    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-id-prob-mjd-slot.txt")
     ra,dec,id,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
     data = np.array([ra, dec, id, prob, mjd, slotNum]).T
     f = open(name,'w')
@@ -238,7 +238,7 @@ def observingRecord(slotsObserving, simNumber, data_dir) :
 #     ra,dec,id,prob,mjd,slotNum,islot = readObservingRecord(simNumber, data_dir)
 def readObservingRecord(simNumber, data_dir) :
     import os
-    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-prob-mjd-slot.txt")
+    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-id-prob-mjd-slot.txt")
     if not os.path.exists(name) :
         ra,dec,id,prob,mjd,slotNum = \
             np.array(0),np.array(0),np.array("0"), \
