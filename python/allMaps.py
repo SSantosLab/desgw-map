@@ -205,7 +205,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
         maxHexesPerSlot      = maxHexesPerSlot_ns
         nepochs           = config["nepochs_NS"]
         epochs = np.array([])
-        for i in range (0,nepochs) :
+        for i in range (1,nepochs+1) :
             epochs        = np.append(epochs, config["epoch{}_NS".format(i)])
         end_date          = config["enddate_NS"]
     elif trigger_type == "BH" :
@@ -216,7 +216,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
         maxHexesPerSlot      = maxHexesPerSlot_bh
         nepochs           = config["nepochs_BH"]
         epochs = np.array([])
-        for i in range (0,nepochs) :
+        for i in range (1,nepochs+1) :
             epochs        = np.append(epochs, config["epoch{}_BH".format(i)])
         end_date          = config["enddate_BH"]
     else :
@@ -232,6 +232,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
     else :
         skipAll = False
     resolution = 256 ;# default, quick
+    resolution = 64 ;# default, quick
     #resolution = 512 ;# native resolution of the LMC event
     probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
         skymap, mjd, trigger_id, outputDir, outputDir, distance=distance,

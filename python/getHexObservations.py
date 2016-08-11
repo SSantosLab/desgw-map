@@ -323,7 +323,7 @@ def nothingToObserveShowSomething(simNumber, data_dir, mapDir) :
     figure = plt.figure(1,figsize=(8.5*1.618,8.5))
     slot = 0
     counter = equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) 
-    return clounter
+    return counter
 #
 # no, no, no, we actually can see something: lets see the best plots
 #

@@ -95,12 +95,18 @@ def manyDaysOfTotalProbability (
     print totalProbs,"\n",times
     print "===== times with total prob > 10**-2"
     ix = totalProbs > 10**-2; 
+    if np.nonzero(ix)[0].size == 0 :
+        totalProbs = np.array([0,])
+        times = np.array([times[0],])
+    else :
+        totalProbs = totalProbs[ix]
+        times = times[ix]
     print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
-    print totalProbs[ix],"\n",times[ix]
+    print totalProbs,"\n",times
 
-    data = np.array([totalProbs[ix], times[ix]]).T
+    data = np.array([totalProbs, times]).T
     np.savetxt(probTimeFile, data, "%f %f")
-    return totalProbs[ix],times[ix]
+    return totalProbs,times
 
 #==============================================================
 #
@@ -155,7 +161,8 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
     counter = -1
     for time,prob  in zip(times, probabilities) :
         counter += 1
-        if prob <= 0 : continue
+        if prob <= 0 : 
+            performHexalatationCalculation = False
         #print "probabilityMapSaver: counter, time= ", counter, time
         if time < 0.06: time = 0.06 ;# if less than 1.5 hours, set to 1.5 hours
         print "================== map save =====>>>>>>>>===== ",
