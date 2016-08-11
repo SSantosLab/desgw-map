@@ -228,7 +228,11 @@ def observingRecord(slotsObserving, simNumber, data_dir) :
     name = os.path.join(data_dir, str(simNumber) + "-ra-dec-prob-mjd-slot.txt")
     ra,dec,id,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
     data = np.array([ra, dec, id, prob, mjd, slotNum]).T
-    np.savetxt(name, data, "%.6f %.5f %s %.6f %.4f %d")
+    f = open(name,'w')
+    for r,d,i,p,m,s in zip(ra, dec, id, prob, mjd, slotNum):
+        f.write("{:.6f} {:.5f} {:s} {:.6f} {:.4f} {:.1f}\n".format(r,d,i,p,m,s))
+    f.close()
+    #np.savetxt(name, data, "%.6f %.5f %s %.6f %.4f %d")
     return ra,dec,id,prob,mjd,slotNum
 
 #     ra,dec,id,prob,mjd,slotNum,islot = readObservingRecord(simNumber, data_dir)
@@ -404,7 +408,7 @@ def loadHexalatedProbabilities(sim, slot, data_dir) :
     name = nameStem + "-hexVals.txt"
     raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, 
         delimiter=",", usecols=(0,1,3,4,5))
-    idHexen = hexelate.getHexId(raHexen, decHexen)
+    idHexen = hexalate.getHexId(raHexen, decHexen)
     slots = np.ones(raHexen.size)*slot
     return raHexen, decHexen, idHexen, hexVal, rank, mjd, slots
 

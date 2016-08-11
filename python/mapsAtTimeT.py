@@ -144,7 +144,7 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
 # 
 def probabilityMapSaver (obs, sim, mjd, distance, models, \
         times, probabilities, data_dir, 
-        this_tiling="", reject_hexes="",
+        onlyHexesAlreadyDone="", reject_hexes="",
         performHexalatationCalculation=True) :
     import hexalate
     import os
@@ -209,7 +209,7 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         hp.write_map(name, sm.probMap)
 
         if performHexalatationCalculation :
-            raHexen, decHexen, idHexen = hexelate.getHexCenters(hexFile)
+            raHexen, decHexen, idHexen = hexalate.getHexCenters(hexFile)
             if onlyHexesAlreadyDone != "" :
                 do_these = np.in1d(idHexen, onlyHexesAlreadyDone)
                 do_these = np.nonzero(do_these)
@@ -229,9 +229,16 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
             # raHexen, decHexen, hexVals except as a sorting key
             name = nameStem + "-hexVals.txt"
             if os.path.exists(name): os.remove(name)
-            data = np.array([raHexen, decHexen, idHexen, hexVals, 
-                rank, (rank*0)+(mjd+time)])
-            np.savetxt(name,data.T,"%.6f, %.5f, %s, %.4e, %d, %.4f")
+            #data = np.array([raHexen, decHexen, idHexen, hexVals, 
+            #    rank, np.asfarray(rank*0.)+(mjd+time)])
+            #print raHexen.dtype, decHexen.dtype, idHexen.dtype, hexVals.dtype, rank.dtype
+            #print mjd,time
+            f = open(name,'w')
+            for ra,dec,i,hx,r,d in zip(raHexen, decHexen, idHexen, hexVals,
+                rank, np.asfarray(rank*0.)+(mjd+time)):
+                f.write("{:.6f}, {:.5f}, {:s}, {:.4e}, {:d}, {:.4f}\n".format(ra,dec,i,hx,r,d))
+            f.close()
+            #np.savetxt(name,data.T,fmt="%.6f, %.5f, %s, %.4e, %d, %.4f")
 
     
 

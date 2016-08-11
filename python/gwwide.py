@@ -132,6 +132,7 @@ def file_gwwide(gw_fname, wide_fname, fixed_fname):
         wide_queue = json.load(f)
     logging.info("Loaded %d wide survey entries from %s", len(wide_queue), wide_fname)
 
+    print 'gw_fname',gw_fname
     with open(gw_fname, 'r') as f:
         gw_queue = json.load(f)
     logging.info("Loaded %d GW followup entries from %s", len(gw_queue), gw_fname)
