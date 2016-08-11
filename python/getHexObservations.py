@@ -131,7 +131,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
 
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, burst_mjd, \
         distance, models, times, probs,mapDir, \
-        this_tiling = this_tiling, reject_hexes = reject_hexes,
+        onlyHexesAlreadyDone = this_tiling, reject_hexes = reject_hexes,
         performHexalatationCalculation=saveHexalationMap)
     return probs, times, slotDuration, hoursPerNight
 
