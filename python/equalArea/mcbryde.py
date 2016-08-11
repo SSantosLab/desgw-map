@@ -140,6 +140,7 @@ def mtCoord (ra,dec, alpha, beta) :
         index = np.nonzero(lon < -180)
         lon[index] = lon[index]+360.
     except :
+        print "mtCoord go Boom- but caught, distrust lon limits"
         pass
     return lon,lat
 

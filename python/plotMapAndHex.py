@@ -81,7 +81,6 @@ def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec,
         badData = True
         badDataVal = -11.0
 
-
     doOrigLigoMap = False
     if doOrigLigoMap :
         ligoResolution = hp.get_nside(ligoMap)
@@ -217,6 +216,7 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
 # compute image limits and midpoints (alpha, beta)
 def computeLimits (raHex, decHex, raMid = -1000, raBoxSize=5., decBoxSize=5, mod_ra=0, mod_dec=0) :
     from equalArea import mcbryde
+    verbose = False
     mod_alpha = 0
     mod_beta = 0
     decMin = decHex.min()-decBoxSize+mod_dec
@@ -230,17 +230,20 @@ def computeLimits (raHex, decHex, raMid = -1000, raBoxSize=5., decBoxSize=5, mod
         raMid = raMin+(raMax-raMin)/2.
     alpha= -1*(raMid+mod_alpha)
 
+    x,y = mcbryde.mcbryde(raHex, decHex, alpha=alpha, beta=beta)
+    xbox = 0.1*(x.max()-x.min())
+    ybox = 0.1*(y.max()-y.min())
+    xmin = x.min()-xbox; xmax = x.max()+xbox
+    ymin = y.min()-ybox; ymax= y.max()+ybox
 
-    v1 = np.array([raMin, raMax, raMax, raMin, raMin])
-    v2 = np.array([decMin, decMin, decMax, decMax, decMin])
-    x,y = mcbryde.mcbryde(v1, v2, alpha=alpha, beta=beta)
-    xmin = x.min(); xmax = x.max()
-    ymin = y.min(); ymax= y.max()
-
+    if verbose:
+        print "ra box, dec box",raMin, raMax, decMin, decMax
+        print "x box, y box", xmin, xmax, ymin, ymax 
+        print "alpha, beta",alpha, beta
     return raMin, raMax, decMin, decMax, xmin, xmax, ymin, ymax, alpha, beta
 
 def makeImage (xMap, yMap, vals, xmin, xmax, ymin, ymax, scale, 
-        badData=False, badDataVal=-11.0, verbose=False) :
+        badData=False, badDataVal=-11.0, verbose=False, too_far_away_scale=1.5) :
     xsize = int(xmax)+1 - int(xmin)-1 
     ysize = int(ymax)+1 - int(ymin)-1 
     nsteps_x = int(xsize*scale)
@@ -257,6 +260,8 @@ def makeImage (xMap, yMap, vals, xmin, xmax, ymin, ymax, scale,
             ypix= j*step_size  + ymin 
             idx = np.argmin((xMap - xpix)**2+(yMap - ypix)**2)
             val = vals[idx]
+            if (xMap[idx] - xpix)**2+(yMap[idx] - ypix)**2 > too_far_away_scale**2:
+                val=badDataVal
             data[nsteps_y-j-1,i] = val
     
     if badData:

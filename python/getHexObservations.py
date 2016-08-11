@@ -560,7 +560,8 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     # get the planned observations
     ra,dec,id,prob,mjd,slotNumbers = obsSlots.readObservingRecord(simNumber, data_dir)
     
-    title = "i-band limiting magnitude"
+    #title = "i-band limiting magnitude"
+    title = "" ;# as the color bar is labeled
     if extraTitle != "" :
         #extraTitle = " mjd {:.2f}: ".format(extraTitle)
         extraTitle = " {} ".format(utcFromMjd(mjd))
