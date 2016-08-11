@@ -68,7 +68,7 @@ def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
             fd.write("  \"program\" : \"des gw\",\n")
             fd.write("  \"RA\" : {:.6f},\n".format(tra))
             fd.write("  \"dec\" : {:.5f},\n".format(tdec))
-            fd.write("  \"propid\" : {},\n".format("2015B-0187"))
+            fd.write("  \"propid\" : \"{}\",\n".format("2015B-0187"))
             fd.write("  \"comment\" : \"{}\"\n".format(comment)) 
             # note lack of comma for end
             fd.write("}")
