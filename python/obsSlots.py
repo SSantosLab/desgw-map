@@ -246,7 +246,7 @@ def readObservingRecord(simNumber, data_dir) :
     else :
         ra,dec,prob,mjd,slotNum = np.genfromtxt(name,unpack=True,comments="#",usecols=(0,1,3,4,5))
         id = np.genfromtxt(name,unpack=True,comments="#", usecols=(2),dtype="str")
-    return ra,dec,prob,mjd,slotNum
+    return ra,dec,id,prob,mjd,slotNum
 
 def slotsObservingToNpArrays(slotsObserving) :
     nslots = slotsObserving["nslots"]

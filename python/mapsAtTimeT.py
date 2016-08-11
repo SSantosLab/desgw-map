@@ -144,7 +144,7 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
 # 
 def probabilityMapSaver (obs, sim, mjd, distance, models, \
         times, probabilities, data_dir, 
-        onlyHexesAlreadyDone="", rejectHexes="",
+        onlyHexesAlreadyDone="", reject_hexes="",
         performHexalatationCalculation=True) :
     import hexalate
     import os
