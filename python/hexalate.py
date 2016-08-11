@@ -97,7 +97,7 @@ def getHexId(ra, dec) :
     intdec = np.abs(np.round(dec));
     sign=np.full(ra.size, "+",dtype="str");
     ix = dec < 0; sign[ix]="-";
-    id = np.array([]),dtype="str")
+    id = np.array([],dtype="str")
     for i in range(0,ra.size) :
         name = str(np.int(intra[i])) + sign[i] + str(np.int(intdec[i]))
         id = np.append(id, name)
