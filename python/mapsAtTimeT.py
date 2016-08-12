@@ -93,14 +93,14 @@ def manyDaysOfTotalProbability (
     # informational
     print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
     print totalProbs,"\n",times
-    print "===== times with total prob > 10**-2"
-    ix = totalProbs > 10**-2; 
-    if np.nonzero(ix)[0].size == 0 :
-        totalProbs = np.array([0,])
-        times = np.array([times[0],])
-    else :
-        totalProbs = totalProbs[ix]
-        times = times[ix]
+#    print "===== times with total prob > 10**-2"
+#    ix = totalProbs > 10**-2; 
+#    if np.nonzero(ix)[0].size == 0 :
+#        totalProbs = np.array([0,])
+#        times = np.array([times[0],])
+#    else :
+#        totalProbs = totalProbs[ix]
+#        times = times[ix]
     print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
     print totalProbs,"\n",times
 

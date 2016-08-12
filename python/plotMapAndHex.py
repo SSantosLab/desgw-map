@@ -131,7 +131,13 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
     xMap,yMap = mcbryde.mcbryde(raMap, decMap, alpha=alpha, beta=beta)
     x,y = mcbryde.mcbryde(hexRa, hexDec, alpha=alpha, beta=beta)
 
-    ix=np.nonzero((xMap > xmin) & (xMap  <= xmax) & (yMap > ymin) & (yMap <= ymax) )
+    if xmin==xmax and ymin==ymax:
+        ix = np.ones(xMap.size).astype(bool)
+        xmin=xMap.min(); xmax=xMap.max()
+        ymin=yMap.min(); ymax=yMap.max()
+        doHexes=False
+    else :
+        ix=np.nonzero((xMap > xmin) & (xMap  <= xmax) & (yMap > ymin) & (yMap <= ymax) )
 
     # plot the image, either as an image or as a hexbin
     plt.clf()

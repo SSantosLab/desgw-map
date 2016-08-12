@@ -239,7 +239,7 @@ def observingRecord(slotsObserving, simNumber, data_dir) :
 def readObservingRecord(simNumber, data_dir) :
     import os
     name = os.path.join(data_dir, str(simNumber) + "-ra-dec-id-prob-mjd-slot.txt")
-    if not os.path.exists(name) :
+    if not os.path.exists(name) or os.stat(name).st_size == 0 :
         ra,dec,id,prob,mjd,slotNum = \
             np.array(0),np.array(0),np.array("0"), \
             np.array(0),np.array(0),np.array(0)
@@ -299,8 +299,11 @@ def findMaxProbOfAllHexes(hexData, observingSlots, n="", verbose = 0) :
             maxProb   = newProb
             maxSlot   = hexMyslot[ix]
             islot = i
+    print "observingSlots", observingSlots
     if maxProb == -1 : 
-        raise Exception("no max probability found")
+        maxRa, maxDec, maxId, maxVal, maxMjd, maxSlot, islot = \
+            0,0,0,0,0,0,0
+        #raise Exception("no max probability found")
     return maxRa, maxDec, maxId, maxVal, maxMjd, maxSlot, islot
 
 # we've found a hex,slot that can be observed so add it the the observing lists
@@ -406,9 +409,14 @@ def loadHexalatedProbabilities(sim, slot, data_dir) :
     import hexalate
     nameStem = os.path.join(data_dir, str(sim) + "-{}".format(str(slot)))
     name = nameStem + "-hexVals.txt"
-    raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, 
-        delimiter=",", usecols=(0,1,3,4,5))
-    idHexen = hexalate.getHexId(raHexen, decHexen)
-    slots = np.ones(raHexen.size)*slot
+    if os.path.isfile(name) :
+        raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, 
+            delimiter=",", usecols=(0,1,3,4,5))
+        idHexen = hexalate.getHexId(raHexen, decHexen)
+        slots = np.ones(raHexen.size)*slot
+    else :
+        raHexen, decHexen, hexVal, rank, mjd, idHexen, slots = \
+            7*[np.zeros(0)]
+
     return raHexen, decHexen, idHexen, hexVal, rank, mjd, slots
 

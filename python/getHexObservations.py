@@ -205,6 +205,9 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
     # print stats to screen
     print "=============>>>>  now: observingStats"
     ra,dec,id,prob,mjd,slotNumbers,islots = obsSlots.observingStats(hoursObserving)
+    # if the length of ra is one and value zero, nothing to observe or plot
+    if ra.size == 1 and ra[0] == 0: 
+        return 0
     # save results to the record
     obsSlots.observingRecord(hoursObserving, simNumber, mapDirectory)
     # write jsons and get slot number  of maximum probability
@@ -280,8 +283,6 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     print "makeObservingPlots(",nslots, simNumber, best_slot,data_dir," )"
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
-    import matplotlib
-    matplotlib.use("Agg"); # matplotlib.use("TkAgg") ??
     import matplotlib.pyplot as plt
     figure = plt.figure(1,figsize=(8.5*1.618,8.5))
 
@@ -302,7 +303,10 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
         ix = slotNumbers == i
         if np.any(ix) : 
             ix = np.nonzero(slotNumbers == i)
-            obsTime = slotMjd[ix[0]].mean()
+            if np.nonzero(ix)[0] > 1 :
+                obsTime = slotMjd[ix[0]].mean()
+            else :
+                obsTime = slotMjd
             print "making observingPlot-{}.png".format(i)
             observingPlot(figure,simNumber,i,mapDirectory, nslots,
                 extraTitle=obsTime)
