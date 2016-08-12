@@ -232,7 +232,6 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
     else :
         skipAll = False
     resolution = 256 ;# default, quick
-    resolution = 64 ;# default, quick
     #resolution = 512 ;# native resolution of the LMC event
     probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
         skymap, mjd, trigger_id, outputDir, outputDir, distance=distance,
