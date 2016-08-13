@@ -283,6 +283,8 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     print "makeObservingPlots(",nslots, simNumber, best_slot,data_dir," )"
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
+    import matplotlib
+    matplotlib.use("Agg"); # matplotlib.use("TkAgg") important for off line image generation
     import matplotlib.pyplot as plt
     figure = plt.figure(1,figsize=(8.5*1.618,8.5))
 
@@ -298,12 +300,12 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
     # now make the hex observation plots
     counter = 1   ;# already made one
     for i in np.unique(slotNumbers) :
-        i = np.int(i)
         obsTime = ""
+        i = np.int(i)
         ix = slotNumbers == i
         if np.any(ix) : 
-            ix = np.nonzero(slotNumbers == i)
-            if np.nonzero(ix)[0] > 1 :
+            ix = np.nonzero(ix)
+            if np.nonzero(ix)[0].size > 1 :
                 obsTime = slotMjd[ix[0]].mean()
             else :
                 obsTime = slotMjd
