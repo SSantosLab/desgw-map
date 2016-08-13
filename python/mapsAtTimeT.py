@@ -158,9 +158,12 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
     gw_data_dir          = os.environ["DESGW_DATA_DIR"]
     hexFile = gw_data_dir + "all-sky-hexCenters-tiling9.txt"
 
+    keep_flag = performHexalatationCalculation
+
     counter = -1
     for time,prob  in zip(times, probabilities) :
         counter += 1
+        performHexalatationCalculation = keep_flag
         if prob <= 0 : 
             performHexalatationCalculation = False
         #print "probabilityMapSaver: counter, time= ", counter, time
@@ -217,12 +220,12 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
 
         if performHexalatationCalculation :
             raHexen, decHexen, idHexen = hexalate.getHexCenters(hexFile)
-            if onlyHexesAlreadyDone != "" :
+            if len(onlyHexesAlreadyDone) > 0 :
                 do_these = np.in1d(idHexen, onlyHexesAlreadyDone)
                 do_these = np.nonzero(do_these)
                 raHexen, decHexen, idHexen = \
                     raHexen[do_these], decHexen[do_these], idHexen[do_these]
-            if reject_hexes != "" :
+            if len(reject_hexes) > 0 :
                 dont_do_these = np.in1d(idHexen, reject_hexes)
                 dont_do_these = np.nonzero(np.invert(dont_do_these))
                 raHexen, decHexen, idHexen = \
@@ -240,10 +243,12 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
             #    rank, np.asfarray(rank*0.)+(mjd+time)])
             #print raHexen.dtype, decHexen.dtype, idHexen.dtype, hexVals.dtype, rank.dtype
             #print mjd,time
+            
             f = open(name,'w')
-            for ra,dec,i,hx,r,d in zip(raHexen, decHexen, idHexen, hexVals,
-                rank, np.asfarray(rank*0.)+(mjd+time)):
-                f.write("{:.6f}, {:.5f}, {:s}, {:.4e}, {:d}, {:.4f}\n".format(ra,dec,i,hx,r,d))
+            for j in range(0,raHexen.size) :
+                if counter == 17: print j, hexVals[j]
+                f.write("{:.6f}, {:.5f}, {:s}, {:.4e}, {:d}, {:.4f}\n".format(
+                    raHexen[j],decHexen[j],idHexen[j],hexVals[j],rank[j],(np.asfarray(rank*0.)+(mjd+time))[j]))
             f.close()
             #np.savetxt(name,data.T,fmt="%.6f, %.5f, %s, %.4e, %d, %.4f")
 
