@@ -122,7 +122,7 @@ def observing(sim, nslots, data_dir,
         print "\t", map_i, "map size= {};".format(raHexen.size), 
 
         impossible = 1e-12
-        impossible = 1e-7
+        impossible = 1e-6
         ix = np.nonzero(hexVal < impossible)
         raHexen, decHexen, idHexen, hexVal, mjd, slotNum, islot  = \
             np.delete(raHexen, ix), \
@@ -230,7 +230,7 @@ def observingRecord(slotsObserving, simNumber, data_dir) :
     data = np.array([ra, dec, id, prob, mjd, slotNum]).T
     f = open(name,'w')
     for r,d,i,p,m,s in zip(ra, dec, id, prob, mjd, slotNum):
-        f.write("{:.6f} {:.5f} {:s} {:.6f} {:.4f} {:.1f}\n".format(r,d,i,p,m,s))
+        f.write("{:.6f} {:.5f} {:s} {:.7f} {:.4f} {:.1f}\n".format(r,d,i,p,m,s))
     f.close()
     #np.savetxt(name, data, "%.6f %.5f %s %.6f %.4f %d")
     return ra,dec,id,prob,mjd,slotNum
