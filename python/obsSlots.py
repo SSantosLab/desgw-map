@@ -317,7 +317,7 @@ def addObsToSlot (slotsObserving, maxData, slot) :
     maxIslot = maxData[6]
     slotsObserving[slot,"ra"]   =  np.append(slotsObserving[slot,"ra"], maxRa)
     slotsObserving[slot,"dec"]  =  np.append(slotsObserving[slot,"dec"], maxDec)
-    slotsObserving[slot,"id"]   =  np.append(slotsObserving[slot,"dec"], maxId)
+    slotsObserving[slot,"id"]   =  np.append(slotsObserving[slot,"id"], maxId)
     slotsObserving[slot,"prob"] =  np.append(slotsObserving[slot,"prob"], maxVal)
     slotsObserving[slot,"mjd"]  =  np.append(slotsObserving[slot,"mjd"], maxMjd)
     slotsObserving[slot,"slotNum"]   =  np.append(slotsObserving[slot,"slotNum"], maxSlotNum)
@@ -412,7 +412,7 @@ def loadHexalatedProbabilities(sim, slot, data_dir) :
     if os.path.isfile(name) :
         raHexen, decHexen, hexVal, rank, mjd = np.genfromtxt(name, unpack=True, 
             delimiter=",", usecols=(0,1,3,4,5))
-        idHexen = hexalate.getHexId(raHexen, decHexen)
+        idHexen = np.genfromtxt(name, unpack=True, delimiter=",", usecols=(2), dtype="str")
         slots = np.ones(raHexen.size)*slot
     else :
         raHexen, decHexen, hexVal, rank, mjd, idHexen, slots = \

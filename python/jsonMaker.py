@@ -37,6 +37,7 @@ def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
 
     size = ra.size
     nexp = np.size(exposureList)
+    seqtot= seqtot*nexp
     for i in range(0,size) :
         for j in range(0,nexp) :
             seqnum +=1
@@ -51,7 +52,8 @@ def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
             tdec = dec[i]
             tdec = tdec+delDec
             tra = tra + delRa/np.cos(tdec*2*np.pi/360.)
-            comment = "DESGW: LIGO {} event {}: {} of {}, hex {}".format(trigger_type, seqid, seqnum, seqtot, id)
+            comment = "DESGW: LIGO {} event {}: {} of {}, hex {} tiling {}".format(
+                trigger_type, seqid, seqnum, seqtot, id[i], 9)
             object = comment
 
             fd.write("{")

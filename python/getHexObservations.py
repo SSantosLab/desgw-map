@@ -565,14 +565,17 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
 
     # get the planned observations
     ra,dec,id,prob,mjd,slotNumbers = obsSlots.readObservingRecord(simNumber, data_dir)
+    ix = slotNumbers == slot
+    the_mjd = mjd[ix][0]
     
     #title = "i-band limiting magnitude"
     title = "" ;# as the color bar is labeled
     if extraTitle != "" :
         #extraTitle = " mjd {:.2f}: ".format(extraTitle)
-        extraTitle = " {} ".format(utcFromMjd(mjd))
+        extraTitle = " Slot {}    {} ".format(slot, utcFromMjd(the_mjd))
         title = extraTitle+title
-    title = title + "      LIGO countours at max/[1.1, 3, 10, 30]"
+    #title = title + "      LIGO countours at max/[1.1, 3, 10, 30]"
+    title = title + "      {}".format(simNumber)
 
 
     print "plotMapAndHex.mapAndHex(figure, ", simNumber, ",", slot, ",", data_dir, ",", nslots, ",ra,dec,", title,") "
