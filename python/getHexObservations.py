@@ -327,8 +327,11 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
 def nothingToObserveShowSomething(simNumber, data_dir, mapDir) :
     import matplotlib.pyplot as plt
     figure = plt.figure(1,figsize=(8.5*1.618,8.5))
-    slot = 0
-    counter = equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) 
+    ra,dec,id,prob,mjd,slotNum=obsSlots.readObservingRecord(simNumber, data_dit)
+    ix = np.argmax(prob)
+    slot = slotNum[ix]
+    title = "slot {} hex maxProb {:.6f}, nothing to observe".format(slot, prob[ix])
+    counter = equalAreaPlot(figure,slot,simNumber,data_dir,mapDir,title) 
     return counter
 #
 # no, no, no, we actually can see something: lets see the best plots
@@ -510,7 +513,7 @@ def probabilityPlot(figure, prob, slotNumbers, simNumber, data_dir) :
     name = str(simNumber)+"-probabilityPlot.png"
     plt.savefig(os.path.join(data_dir,name))
 
-def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) :
+def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir, title="") :
     import matplotlib.pyplot as plt
     from equalArea import mcplot
     from equalArea import mcbryde
@@ -533,6 +536,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) :
     plt.clf();mcplot.plot(ra,dec,ligo)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
+    plt.title(title)
     plt.savefig(name)
 
     name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-maglim-eq.png")
@@ -540,6 +544,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) :
     plt.clf();mcplot.plot(ra,dec,maglim,vmin=17);
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
+    plt.title(title)
     plt.savefig(name)
 
     name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-prob-eq.png")
@@ -547,6 +552,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) :
     plt.clf();mcplot.plot(ra,dec,prob)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
+    plt.title(title)
     plt.savefig(name)
 
     name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-probXligo-eq.png")
@@ -554,6 +560,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir) :
     plt.clf();mcplot.plot(ra,dec,prob*ligo)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
+    plt.title(title)
     plt.savefig(name)
     # return the number of plots made
     return 4 
