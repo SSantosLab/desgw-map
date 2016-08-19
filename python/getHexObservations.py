@@ -329,7 +329,18 @@ def nothingToObserveShowSomething(simNumber, data_dir, mapDir) :
     figure = plt.figure(1,figsize=(8.5*1.618,8.5))
     ra,dec,id,prob,mjd,slotNum=obsSlots.readObservingRecord(simNumber, data_dir)
     ix = np.argmax(prob)
-    slot = slotNum[ix]
+    try:
+        slot = np.int(slotNum[ix])
+    except:
+        print "ra",ra
+        print "dec",dec
+        print "id",id
+        print "prob",prob
+        print "mjd",mjd
+        print "slotNum"slotNum
+        print "ix",ix
+        print "ix index",np.nonzero(ix)
+        raise Exception("this failed once, but ran fine when I did it in the directory. NSF thing?")
     title = "slot {} hex maxProb {:.6f}, nothing to observe".format(slot, prob[ix])
     counter = equalAreaPlot(figure,slot,simNumber,data_dir,mapDir,title) 
     return counter
