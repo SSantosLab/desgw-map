@@ -337,7 +337,7 @@ def nothingToObserveShowSomething(simNumber, data_dir, mapDir) :
         print "id",id
         print "prob",prob
         print "mjd",mjd
-        print "slotNum"slotNum
+        print "slotNum", slotNum
         print "ix",ix
         print "ix index",np.nonzero(ix)
         raise Exception("this failed once, but ran fine when I did it in the directory. NSF thing?")
