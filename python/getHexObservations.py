@@ -327,7 +327,7 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
 def nothingToObserveShowSomething(simNumber, data_dir, mapDir) :
     import matplotlib.pyplot as plt
     figure = plt.figure(1,figsize=(8.5*1.618,8.5))
-    ra,dec,id,prob,mjd,slotNum=obsSlots.readObservingRecord(simNumber, data_dit)
+    ra,dec,id,prob,mjd,slotNum=obsSlots.readObservingRecord(simNumber, data_dir)
     ix = np.argmax(prob)
     slot = slotNum[ix]
     title = "slot {} hex maxProb {:.6f}, nothing to observe".format(slot, prob[ix])
