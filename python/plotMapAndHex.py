@@ -68,7 +68,7 @@ def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec,
         stars = hp.read_map("/home/s1/annis/daedalean/desgw-map/data/2MASS-J-lt-16-stardensity-hp.fits")
         #stars = hp.read_map("/home/s1/annis/daedalean/desgw-map/data/2MASS-J-lt-16-starcounts-hp.fits")
         if resolution != 512 :
-            junk, junk, stars = hp2np.map2np(stars, resolution, fluxConservation=True)
+            junk, junk, stars = hp2np.map2np(stars, resolution)
         ix = stars <= 0
         stars[ix]= 1.
         stars = np.log10(stars)
@@ -145,7 +145,7 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
         data = makeImage (xMap[ix], yMap[ix], map[ix], xmin, xmax, ymin, ymax, scale, 
             badData=badData, badDataVal=badDataVal)
         # hack to make this 5 sigma, not 10 sigma limitin mag
-        print "10sigma -> 5 sigma hack"
+        print "\t\t 10sigma -> 5 sigma hack",
         data = data +0.75257 
         low_limit = low_limit+ 0.75257
         high_limit = high_limit+ 0.75257
@@ -166,7 +166,7 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
     plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax)
 
     if colorbar:
-        cb = plt.colorbar(shrink=0.8,pad=0.03); 
+        cb = plt.colorbar(shrink=0.5,pad=0.03); 
         cb.set_label("5$\sigma$ point source limiting magnitude")
 
     # put on the ligo contours
@@ -196,6 +196,9 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
         #ix =np.invert( insideDesFootprint.insideFootprint(hexRa, hexDec))
         #ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="orange", lw=linewidth) 
         if slots.size > 0 :
+            # plot the already observed hexes as maroon
+            ix = slots<thisSlot
+            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="maroon", lw=linewidth) 
             # plot the current slots hexes as yellow
             ix = slots==thisSlot
             ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="yellow", lw=linewidth) 
@@ -280,7 +283,7 @@ def getOriginalLigoMap (mapName, resolution) :
     import healpy as hp
     import hp2np
     secondLigo = hp.read_map(mapName)
-    secondRa,secondDec,secondLigo = hp2np.map2np(secondLigo, resolution, fluxConservation=True)
+    secondRa,secondDec,secondLigo = hp2np.map2np(secondLigo, resolution)
     return secondRa, secondDec, secondLigo
 
 

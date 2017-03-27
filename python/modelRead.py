@@ -11,6 +11,12 @@ import numpy as np
 #    abs_mag = models_at_t[0]
 #
 #
+# tell me what the max absMag is for the disk B+K model
+def maxAbsMag(models) :
+    time1,mags1=models["model1"]
+    a=np.argmin(mags1)
+    return mags1[a], time1[a]
+
 def getModels() :
     models = readModels()
     models = interpolateModels(models)
@@ -45,6 +51,8 @@ def interpolateModels (models) :
     models["mags3_interp"] = mags3_interp
     models["mags4_interp"] = mags4_interp
 
+    maxAbs, time_maxAbs = maxAbsMag(models)
+    models["scale"] = maxAbs, time_maxAbs
     return models
 
 def readModels (dir = "/data/des30.a/data/annis/des-gw/ligo/fourModels/") :
@@ -97,6 +105,7 @@ def readModels (dir = "/data/des30.a/data/annis/des-gw/ligo/fourModels/") :
     ans["model3"] = model3
     ans["model4"] = model4
     return ans
+
 
 def combine_mags(disk_mags, wind_mags, time_d, time_w) :
     from scipy.interpolate import interp1d

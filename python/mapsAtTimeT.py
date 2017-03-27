@@ -54,22 +54,32 @@ import modelRead
 #   deltaTime = 0.223*2 ;# twice as long slots, (8 hexes/slot)
 
 
-def oneDayOfTotalProbability (obs, mjd, distance, models,
-        deltaTime=0.0223, start_mjd = 0, 
-        probTimeFile="probTime.txt") :
+def oneDayOfTotalProbability (obs, mjd, spatial, distance, distance_sig, 
+        models, deltaTime=0.0223, start_mjd = 0, 
+        probTimeFile="probTime.txt", trigger_type="NS",
+        halfNight = False, firstHalf= True) :
 
     # the work.
+    start_of_days=0
+    end_of_days=1
+    #print "JTA debugging  ====="
+    #end_of_days=0.1
     totalProbs,times = manyDaysOfTotalProbability(
-        obs, mjd, distance, models, 
-        start_mjd = start_mjd, startOfDays=0, endOfDays=1,
-        deltaTime=deltaTime, probTimeFile=probTimeFile) 
+        obs, mjd, spatial, distance, distance_sig, models, 
+        start_mjd = start_mjd, 
+        startOfDays=start_of_days, endOfDays=end_of_days,
+        deltaTime=deltaTime, probTimeFile=probTimeFile,
+        trigger_type=trigger_type, 
+        halfNight = halfNight, firstHalf= firstHalf) 
 
     return totalProbs,times
 
 def manyDaysOfTotalProbability (
-        obs, burst_mjd, distance, models, start_mjd=0,
+        obs, burst_mjd, spatial, distance, distance_sig, 
+        models, start_mjd=0,
         startOfDays=0, endOfDays=11, deltaTime=0.0223, 
-        probTimeFile="probTime.txt") :
+        probTimeFile="probTime.txt", trigger_type="NS",
+        halfNight = False, firstHalf= True) :
     times = []
     totalProbs = []
 
@@ -80,19 +90,46 @@ def manyDaysOfTotalProbability (
 
     # in the language of getHexObservations:
     #   each slot is 32 minutes, each slot can hold 4 hexes
+    dark = False
+    isDark = []
     for time in np.arange(startOfDays,endOfDays,deltaTime) :
         time = time + delayTime
         if time < (1.5/24.) : continue
         print "================================== ",
-        print "hours since Time Zero: {:.1f}".format(time*24.)
-        totalProb = totalProbability(obs, burst_mjd, time, distance, models)
+        print "hours since Time Zero: {:.1f}".format(time*24.),
+        totalProb, sunIsUp = totalProbability(obs, burst_mjd, time, \
+            spatial, distance, distance_sig, models, \
+            trigger_type=trigger_type)
+        if sunIsUp: print "\t ... the sun is up"
         times.append(time)
         totalProbs.append(totalProb)
+        if not dark and not sunIsUp:
+            dark = True ;# model sunset
+        if dark and sunIsUp:
+            dark = False ;# model sunrise
+        isDark.append(dark)
     totalProbs =np.array(totalProbs)
     times = np.array(times)
+    isDark = np.array(isDark).astype(bool)
+    # JTA successful half nights
+    # an attempt to deal with half nights
+    # if successful, these two booleans should go in yaml
+    # somehow and be passed down to here
+    #halfNight = True; firstHalf= True
+    darkCount = np.nonzero(isDark)[0]
+    if halfNight:
+        darkHalfSize = np.int(np.round(darkCount.size/2.))
+        if firstHalf:
+            darkCount = darkCount[:darkHalfSize]
+        else :
+            darkCount = darkCount[darkHalfSize:]
+        tp = totalProbs
+        totalProbs = totalProbs*0.0
+        totalProbs[darkCount] = tp[darkCount]
     # informational
     print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
-    print totalProbs,"\n",times
+    print totalProbs,"\n",times,"\n",isDark.astype(int)
+    print "dark slots=",darkCount.size
 #    print "===== times with total prob > 10**-2"
 #    ix = totalProbs > 10**-2; 
 #    if np.nonzero(ix)[0].size == 0 :
@@ -101,36 +138,53 @@ def manyDaysOfTotalProbability (
 #    else :
 #        totalProbs = totalProbs[ix]
 #        times = times[ix]
-    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
-    print totalProbs,"\n",times
+#    print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
+#    print totalProbs,"\n",times
 
-    data = np.array([totalProbs, times]).T
-    np.savetxt(probTimeFile, data, "%f %f")
+    data = np.array([totalProbs, times, isDark.astype(int)]).T
+    np.savetxt(probTimeFile, data, "%f %f %d")
     return totalProbs,times
 
 #==============================================================
 #
 # core computation
 #
-def probabilityMaps(obs, mjdOfBurst, daysSinceBurst, distance, models,
-        filter="i", exposure=180, ns_model="known") :
+def totalProbability(obs, mjdOfBurst, daysSinceBurst, \
+        spatial, distance, distance_sig, models,
+        filter="i", exposure=180, trigger_type="NS") :
+    obs,sm,sunIsUp = probabilityMaps(obs, mjdOfBurst, daysSinceBurst, \
+        spatial, distance, distance_sig,
+        models, filter, exposure, trigger_type=trigger_type)
+    if sunIsUp:
+        totalProb = 0.0
+    else :
+        totalProb = (obs.map * sm.probMap).sum()
+    return totalProb, sunIsUp
+
+# drive the probability map calculations. In the end, distance only is used here
+def probabilityMaps(obs, mjdOfBurst, daysSinceBurst, \
+        spatial, distance, distance_sig, models,
+        filter="i", exposure=180, trigger_type="NS") :
     obs.resetTime(mjdOfBurst+daysSinceBurst)
+    sm=sourceProb.map(obs, type=trigger_type);  
+
+    sunIsUp = obs.sunBrightnessModel(obs.sunZD)
+    if sunIsUp: return obs, sm, sunIsUp
+
     obs.limitMag(filter, exposure=exposure)
-
-    sm=sourceProb.map(obs, lumModel=ns_model);  
-    models_at_t = modelRead.modelsAtTimeT (models, daysSinceBurst)
-    abs_mag = models_at_t[0]
-    sm.modelAbsoluteMagnitude = abs_mag
+    if trigger_type == "NS" :
+        # we may need to rescale the light curve in the models
+        models_at_t = modelRead.modelsAtTimeT (models, daysSinceBurst)
+        model_scale, model_scale_time = models["scale"]
+        AbsMag = sm.modelAbsoluteMagnitude
+        new_scale = AbsMag - model_scale
+        abs_mag = models_at_t[0] + new_scale
+        sm.absMagMean = abs_mag
     sm.searchDistance = np.array([distance,])
-    sm.calculateProb()
-    return obs,sm
-
-def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
-        filter="i", exposure=180, ns_model="known") :
-    obs,sm = probabilityMaps(obs, mjdOfBurst, daysSinceBurst, distance,
-        models, filter, exposure, ns_model)
-    totalProb = (obs.map * sm.probMap).sum()
-    return totalProb
+    result = sm.calculateProb(spatial, distance, distance_sig)
+    if not result:
+        sunIsUp = 1
+    return obs,sm, sunIsUp
 
 #==============================================================
 #
@@ -148,10 +202,11 @@ def totalProbability(obs, mjdOfBurst, daysSinceBurst, distance, models,
 # ra,decs that are already done, and these will replace the
 # all sky hexes
 # 
-def probabilityMapSaver (obs, sim, mjd, distance, models, \
-        times, probabilities, data_dir, 
+def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
+        models, times, probabilities, data_dir, 
         onlyHexesAlreadyDone="", reject_hexes="",
-        performHexalatationCalculation=True) :
+        performHexalatationCalculation=True, trigger_type="NS") :
+    import decam2hp
     import hexalate
     import os
     # one reads the tiling 9 hex centers as that is our default position
@@ -169,8 +224,16 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         #print "probabilityMapSaver: counter, time= ", counter, time
         if time < 0.06: time = 0.06 ;# if less than 1.5 hours, set to 1.5 hours
         print "================== map save =====>>>>>>>>===== ",
-        print "hours since Time Zero: {:.1f}".format(time*24.)
-        obs,sm = probabilityMaps( obs, mjd, time, distance, models)
+        print "slot {} | hours since Time Zero: {:.1f}".format(counter, time*24.),
+        if prob <= 0 : 
+            print "\t total probability is zero"
+            continue
+        obs,sm, isDark = \
+            probabilityMaps( obs, mjd, time, ligo, distance, distance_sig,
+            models, trigger_type=trigger_type)
+        if obs.sunBrightnessModel (obs.sunZD ): 
+            #print "\t\tThe sun is up. Continue"
+            continue
 
         # obs.ra, obs.dec, obs.map  = ligo map
         # obs.hx, obs.hy   = mcbryde projection of houar angle, dec
@@ -211,13 +274,17 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
         name = nameStem + "-maglim-global.hp"
         if os.path.exists(name): os.remove(name)
         hp.write_map(name, obs.maglimall)
-        name = nameStem + "-prob.hp"
-        if os.path.exists(name): os.remove(name)
-        hp.write_map(name, sm.prob)
+# do we need this?
+        #name = nameStem + "-prob.hp"
+        #if os.path.exists(name): os.remove(name)
+        #hp.write_map(name, sm.prob)
         name = nameStem + "-probMap.hp"
         if os.path.exists(name): os.remove(name)
         hp.write_map(name, sm.probMap)
 
+        treedata = decam2hp.buildtree(obs.ra*360./2/np.pi,obs.dec*360./2/np.pi,\
+            nsides=hp.get_nside(obs.ra),recompute=True) 
+        tree = treedata[2]
         if performHexalatationCalculation :
             raHexen, decHexen, idHexen = hexalate.getHexCenters(hexFile)
             if len(onlyHexesAlreadyDone) > 0 :
@@ -232,21 +299,17 @@ def probabilityMapSaver (obs, sim, mjd, distance, models, \
                     raHexen[do_these], decHexen[do_these], idHexen[do_these]
 
             raHexen, decHexen, idHexen, hexVals, rank = \
-                hexalate.cutAndHexalateOnRaDec ( obs, sm, raHexen, decHexen, idHexen)
+                hexalate.cutAndHexalateOnRaDec ( obs, sm, raHexen, decHexen, idHexen, tree)
 
             # where rank is to be understood as the indicies of the
             # ranked hexes in order; i.e., they have nothing to do with
             # raHexen, decHexen, hexVals except as a sorting key
             name = nameStem + "-hexVals.txt"
             if os.path.exists(name): os.remove(name)
-            #data = np.array([raHexen, decHexen, idHexen, hexVals, 
-            #    rank, np.asfarray(rank*0.)+(mjd+time)])
-            #print raHexen.dtype, decHexen.dtype, idHexen.dtype, hexVals.dtype, rank.dtype
             #print mjd,time
             
             f = open(name,'w')
             for j in range(0,raHexen.size) :
-                if counter == 17: print j, hexVals[j]
                 f.write("{:.6f}, {:.5f}, {:s}, {:.4e}, {:d}, {:.4f}\n".format(
                     raHexen[j],decHexen[j],idHexen[j],hexVals[j],rank[j],(np.asfarray(rank*0.)+(mjd+time))[j]))
             f.close()

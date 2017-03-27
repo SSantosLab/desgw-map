@@ -13,14 +13,19 @@ Try:
 
 # get ligo map
 >>> import hp2np
->>> ra,dec,ligo = hp2np.hp2np(os.environ['DESGW_DATA_DIR'] + "/bayestar.fits.gz")
+>>> import healpy as hp
+>> skymap = "lalinference.fits.gz"; resolution = 128
+>>> ra,dec,ligo = hp2np.hp2np(skymap)
+>>> j,j,ligo_dist = hp2np.hp2np(skymap, degrade=resolution, field=1)
+>>> j,j,ligo_dist_var =hp2np.hp2np(skymap, degrade=resolution, field=2)
+>>> j,j,ligo_dist_norm = hp2np.hp2np(skymap, degrade=resolution, field=3)
 
 # compute limiting mag
 >>> mjd = 55435.60552; obs = mags.observed(ra,dec,ligo, mjd); omags = obs.limitMag("i")
 # since this turns out to be during the day, change the time.
 >>> obs.resetTime(mjd+(10./24.)); obs.limitMag("i")
-# perhaps make the exposures longer than 30 sec, say 3x60 seconds
->>> obs.limitMag("i",exposure=180.)
+# perhaps make the exposures longer than 30 sec, say 90 seconds
+>>> obs.limitMag("i",exposure=90.)
 
 # plot as ra,dec map (all coordinates are stored as radians)
 >>> plt.clf(); plt.hexbin( obs.ra*360./2/np.pi, obs.dec*360./2/np.pi, obs.maglim, vmin=15); plt.colorbar()
@@ -31,7 +36,7 @@ Try:
 
 # work with the source probabilty
 >>> import sourceProb
->>> sm=sourceProb.map(obs, lumModel="guassianAM");  sm.calculateProb()
+>>> sm=sourceProb.map(obs,type="NS");  sm.calculateProb(ligo, ligo_dist, ligo_dist_sigma)
 >>> plt.clf();plt.hexbin(obs.x,obs.y,sm.probMap); plt.colorbar()
 >>> plt.clf();plt.hexbin(obs.x,obs.y,sm.probMap*ligo); plt.colorbar()
 
@@ -51,7 +56,7 @@ Try:
 >>> plt.savefig("thefig.pdf", bbox_inches="tight")
 
 # get the limiting distance map, assuming a fixed absolute magnitude
->>> sm=sourceProb.map(obs, lumModel="distance");  sm.calculateProb()
+>>> sm=sourceProb.map(obs, type="NS");  sm.calculateProb()
 >>> plt.clf(); plt.hexbin( obs.x, obs.y, sm.prob); plt.colorbar()
 
 # lower the resolution of the maps for speed
@@ -60,7 +65,7 @@ Try:
 >>> obs = mags.observed(ra2,dec2,ligo2 mjd, degradeRes=True);
 >>> obs.resetTime(mjd+(10./24.));
 >>> obs.limitMag("i", exposure=180);
->>> sm=sourceProb.map(obs, lumModel="delta");sm.calculateProb();
+>>> sm=sourceProb.map(obs, type="NS");sm.calculateProb();
 
 # plot using hour angle instead of RA- area always in center
 >>> mcplot.plot(obs.hx,obs.hy,sm.probMap,cmap="gray"); 

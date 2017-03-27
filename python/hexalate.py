@@ -27,9 +27,9 @@ import decam2hp
 # Example usage
 #
 #    obs.resetTime(mjd+time)
-#    obs.limitMag("i", exposure=180)
+#    obs.limitMag("i", exposure=90)
 #
-#    sm=sourceProb.map(obs, lumModel="known");
+#    sm=sourceProb.map(obs);
 #    models_at_t = modelsAtTimeT (models, time)
 #    abs_mag = models_at_t[0]
 #    sm.modelAbsoluteMagnitude = abs_mag
@@ -61,12 +61,12 @@ def cutAndHexalate (obs, sm, allskyDesHexes="../data/all-sky-hexCenters.txt") :
         obs, sm, raHexen, decHexen, idHexen)
     return raHexen, decHexen, idHexen, hexVals, rank
 
-def cutAndHexalateOnRaDec (obs, sm, raHexen, decHexen, idHexen) :
+def cutAndHexalateOnRaDec (obs, sm, raHexen, decHexen, idHexen, tree) :
     verbose = False
     obsHourAngle = obs.ha*360./(2*np.pi)
     obsRa        = obs.ra*360./(2*np.pi)
     obsDec       = obs.dec*360./(2*np.pi)
-    # based on blanco horizen limits
+    # based on blanco horizen limits  (may not be needed with tree)
     ix = (abs(obsHourAngle) <= 83. ) & (obsDec < 43.)
     ix2 = decHexen < 43.
 
@@ -75,7 +75,9 @@ def cutAndHexalateOnRaDec (obs, sm, raHexen, decHexen, idHexen) :
         print "\t cutAndHexalate probabilities sum",probabilities.sum()
 
     hexVals = np.zeros(raHexen.size)
-    hexVals[ix2] = decam2hp.hexalateMap(obsRa[ix],obsDec[ix], probabilities[ix],
+    #hexVals[ix2] = decam2hp.hexalateMapTested(obsRa[ix],obsDec[ix], probabilities[ix], 
+    #    raHexen[ix2], decHexen[ix2])
+    hexVals[ix2] = decam2hp.hexalateMap(obsRa,obsDec, probabilities, tree,
         raHexen[ix2], decHexen[ix2])
     if verbose  :
         print "hexVals max", hexVals.max()

@@ -121,8 +121,8 @@ def observing(sim, nslots, data_dir,
         islot = i*np.ones(raHexen.size)
         print "\t", map_i, "map size= {};".format(raHexen.size), 
 
-        impossible = 1e-12
-        impossible = 1e-6
+        impossible = 1e-5
+        impossible = 1e-7
         ix = np.nonzero(hexVal < impossible)
         raHexen, decHexen, idHexen, hexVal, mjd, slotNum, islot  = \
             np.delete(raHexen, ix), \
@@ -229,8 +229,14 @@ def observingRecord(slotsObserving, simNumber, data_dir) :
     ra,dec,id,prob,mjd,slotNum,islot = slotsObservingToNpArrays(slotsObserving) 
     data = np.array([ra, dec, id, prob, mjd, slotNum]).T
     f = open(name,'w')
-    for r,d,i,p,m,s in zip(ra, dec, id, prob, mjd, slotNum):
-        f.write("{:.6f} {:.5f} {:s} {:.7f} {:.4f} {:.1f}\n".format(r,d,i,p,m,s))
+    unique_slots = np.unique(slotNum)
+    for slot in unique_slots:
+        ix = slot==slotNum
+        iy = np.argsort(ra[ix])
+        for r,d,i,p,m,s in zip(
+                ra[ix][iy], dec[ix][iy], id[ix][iy], 
+                prob[ix][iy], mjd[ix][iy], slotNum[ix][iy]):
+            f.write("{:.6f} {:.5f} {:s} {:.7f} {:.4f} {:.1f}\n".format(r,d,i,p,m,s))
     f.close()
     #np.savetxt(name, data, "%.6f %.5f %s %.6f %.4f %d")
     return ra,dec,id,prob,mjd,slotNum
@@ -299,7 +305,7 @@ def findMaxProbOfAllHexes(hexData, observingSlots, n="", verbose = 0) :
             maxProb   = newProb
             maxSlot   = hexMyslot[ix]
             islot = i
-    print "observingSlots", observingSlots
+    #print "observingSlots", observingSlots
     if maxProb == -1 : 
         maxRa, maxDec, maxId, maxVal, maxMjd, maxSlot, islot = \
             0,0,0,0,0,0,0

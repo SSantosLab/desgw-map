@@ -52,7 +52,11 @@ def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
             tdec = dec[i]
             tdec = tdec+delDec
             tra = tra + delRa/np.cos(tdec*2*np.pi/360.)
-            comment = "DESGW: LIGO {} event {}: {} of {}, hex {} tiling {}".format(
+            if tra < 0 : tra = tra+360.
+            if tra > 360. : tra = tra-360.
+            #comment = "DESGW: LIGO {} event {}: {} of {}, hex {} tiling {}".format(
+            #    trigger_type, seqid, seqnum, seqtot, id[i], 9)
+            comment = "{} event {}: {} of {}, hex {} tiling {}".format(
                 trigger_type, seqid, seqnum, seqtot, id[i], 9)
             object = comment
 
@@ -70,7 +74,7 @@ def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
             fd.write("  \"program\" : \"des gw\",\n")
             fd.write("  \"RA\" : {:.6f},\n".format(tra))
             fd.write("  \"dec\" : {:.5f},\n".format(tdec))
-            fd.write("  \"propid\" : \"{}\",\n".format("2015B-0187"))
+            fd.write("  \"propid\" : \"{}\",\n".format("2017A-0069"))
             fd.write("  \"comment\" : \"{}\"\n".format(comment)) 
             # note lack of comma for end
             fd.write("}")

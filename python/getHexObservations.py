@@ -2,6 +2,8 @@ import numpy as np
 import jsonMaker
 import os
 import obsSlots
+import hp2np
+import decam2hp
 #
 #       the routine mapsAtTimeT.oneDayOfTotalProbability
 #           breaks the night into slots of 32 minutes duration
@@ -55,24 +57,30 @@ import obsSlots
 #
 #   exposure_length is only used in the computation of the limiting mag map
 #
-#   if start_mjd =0, then the computations start at the burst_mjd,
-#   else at start_mjd
-#
-def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
+def prepare(skymap, trigger_id, data_dir, mapDir,
         distance=60., exposure_list = [90,], filter_list=["i",],
         overhead=30., maxHexesPerSlot=6,
-        start_mjd = 0, skipHexelate=False, skipAll=False, 
+        start_days_since_burst = 0, skipHexelate=False, skipAll=False, 
         this_tiling = "", reject_hexes = "",
         onlyHexesAlreadyDone="", 
-        saveHexalationMap=True, doOnlyMaxProbability=False, resolution=256) :
+        saveHexalationMap=True, doOnlyMaxProbability=False, 
+        resolution=256, trigger_type="NS", 
+        halfNight = False, firstHalf= True, debug=False) :
     import mapsAtTimeT
     import mags
     import modelRead
     import healpy as hp
-    import hp2np
     import os
-    debug = 0
-    if start_mjd == 0: start_mjd = burst_mjd
+    import fitsio
+    hdr = fitsio.read_header(skymap,1)
+    burst_mjd = np.float(hdr["mjd-obs"])
+    if distance == -999 :
+        distance = hdr["distmean"]
+    print "burst_mjd = {:.2f} at a distance of {:.1f} Mpc".format(
+        burst_mjd, distance)
+    print "calculation starting at  {:.1f} days since burst\n".format(
+         start_days_since_burst)
+    start_mjd = burst_mjd + start_days_since_burst
 
     exposure_list = np.array(exposure_list)
     filter_list = np.array(filter_list)
@@ -84,6 +92,7 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
     hoursPerNight = answers["hoursPerNight"] ;# in minutes
     slotDuration = answers["slotDuration"] ;# in minutes
     deltaTime = slotDuration/(60.*24.) ;# in days
+    if halfNight: hoursPerNight = hoursPerNight/2.
 
     probabilityTimesCache = os.path.join(data_dir,\
         "probabilityTimesCache_"+str(trigger_id)+".txt")
@@ -108,31 +117,54 @@ def prepare(skymap, burst_mjd, trigger_id, data_dir, mapDir,
     models = modelRead.getModels()
 
     # === prep the maps
-    ligo = hp.read_map(skymap)
-    ra,dec,ligo = hp2np.map2np(ligo, resolution, fluxConservation=True)
+    ra,dec,ligo=hp2np.hp2np(skymap, degrade=resolution, field=0)
+    ligo_dist, ligo_dist_sig, ligo_dist_norm  = \
+        distance*np.ones(ra.size), np.zeros(ra.size), np.zeros(ra.size)
+    try :
+        junk,junk,ligo_dist =hp2np.hp2np(skymap, degrade=resolution, field=1)
+        junk,junk,ligo_dist_sig =hp2np.hp2np(skymap, degrade=resolution, field=2)
+        junk,junk,ligo_dist_norm =hp2np.hp2np(skymap, degrade=resolution, field=3)
+    except:
+        print "\t !!!!!!!! ------- no distance information in skymap ------ !!!!!!!!"
+    # GW170217 hack JTA
+    #ix = (ra > 0) & ( ra < 180) & (dec >= -30)
+    #ix = np.invert(ix)
+    #ligo[ix] = 0.0
+    # GW170225 hack JTA
+    #ix = (dec >= 2)
+    #ligo[ix] = 0.0
+
     obs = mags.observed(ra,dec,ligo, start_mjd, verbose=False)
     obs.limitMag("i",exposure=exposure_length)
+    print "finished setting up exposure calculation"
 
     # ==== calculate maps during a full night of observing
     probs,times = mapsAtTimeT.oneDayOfTotalProbability(
-        obs, burst_mjd, distance, models, 
+        obs, burst_mjd, ligo, ligo_dist, ligo_dist_sig, models, 
         deltaTime=deltaTime, start_mjd= start_mjd,
-        probTimeFile= probabilityTimesCache )
+        probTimeFile= probabilityTimesCache,
+        trigger_type=trigger_type,
+        halfNight = halfNight, firstHalf= firstHalf) 
     if skipHexelate:
         print "=============>>>> prepare: using cached maps"
         return probs, times, slotDuration
     if debug :
-        return  obs, trigger_id, mjd, distance, models, times, probs,data_dir
+        return  obs, trigger_id, burst_mjd, ligo, ligo_dist, ligo_dist_sig, \
+            models, times, probs, mapDir
     if doOnlyMaxProbability :
         if len(probs) == 0 : return [0,],[0,],[0,],[0,]
         ix = np.argmax(probs)
         probs = [probs[ix],]
         times = [times[ix],]
+    #print "JTA debugging =============== "
+    #probs = np.array(probs[1:4])
+    #times = np.array(times[1:4])
 
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, burst_mjd, \
-        distance, models, times, probs,mapDir, \
+        ligo, ligo_dist, ligo_dist_sig, models, times, probs, mapDir, \
         onlyHexesAlreadyDone = this_tiling, reject_hexes = reject_hexes,
-        performHexalatationCalculation=saveHexalationMap)
+        performHexalatationCalculation=saveHexalationMap,
+        trigger_type=trigger_type)
     return probs, times, slotDuration, hoursPerNight
 
 # ========== do simple calculations on how to divide the night
@@ -219,7 +251,15 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
             exposure_list=exposure_list, filter_list=filter_list, 
             trigger_type=trigger_type, mapDirectory=mapDirectory) 
 
+    # shall we measure the total ligo probability covered?
     return maxProb_slot
+
+def how_well_did_we_do(skymap, simNumber, data_dir) :
+    ra,dec,ligo = hp2np.hp2np(skymap)
+    name = os.path.join(data_dir, str(simNumber) + "-ra-dec-id-prob-mjd-slot.txt")
+    raH, decH = np.genfromtxt(name, unpack=True, usecols=(0,1))
+    sum = decam2hp.hexalateMapTested(ra,dec,ligo,raH,decH); 
+    print "\nTotal Ligo probability covered by hexes observed: :",sum.sum()
 
 # ===== The economics analysis
 #
@@ -309,7 +349,7 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
                 obsTime = slotMjd[ix[0]].mean()
             else :
                 obsTime = slotMjd
-            print "making observingPlot-{}.png".format(i)
+            #print "\t making observingPlot-{}.png".format(i)
             observingPlot(figure,simNumber,i,mapDirectory, nslots,
                 extraTitle=obsTime)
             name = str(simNumber)+"-observingPlot-{}.png".format(i)
@@ -391,7 +431,7 @@ def area_left (area_per_hex, time_budget, time_cost_per_hex) :
 # place holder for the code brought from desisurvey...
 def hoursPerNight (mjd) :
     import mags
-    night = mags.findNightDuration(mjd)
+    night,sunset,sunrise = mags.findNightDuration(mjd)
     night = night*24.
     return night
 
@@ -415,7 +455,7 @@ def turnObservingRecordIntoJSONs(
             filterList= filter_list, trigger_type=trigger_type, jsonFilename=tmpname)
 
         desJson(tmpname, name, mapDirectory) 
-        seqzero =+ ra[ix].size
+        seqzero += ra[ix].size
         
 # verbose can be 0, 1=info, 2=debug
 def desJson(tmpname, name, data_dir, verbose = 1) :
@@ -447,7 +487,8 @@ def utcFromMjd (mjd) :
     day = np.int(date[2])
     hour = np.int(date[3]*24.)
     minute = np.int( (date[3]*24.-hour)*60.  )
-    time = "UTC-{}-{}-{}-{}:{}:00".format(year,month,day,hour,minute)
+    #time = "UTC-{}-{}-{}-{:02d}:{:02d}:00"..format(year,month,day,hour,minute)  old way
+    time = "UTC-{}-{:02d}-{:02d}-{:02d}:{:02d}:00".format(year,month,day,hour,minute)
     return time
 
 def jsonName (slot, utcString, simNumber, mapDirectory) :
@@ -543,7 +584,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir, title="") :
     plt.axes().set_aspect('equal')
 
     name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-ligo-eq.png")
-    print "making ",name
+    print "making ",name,
     plt.clf();mcplot.plot(ra,dec,ligo)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
@@ -551,7 +592,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir, title="") :
     plt.savefig(name)
 
     name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-maglim-eq.png")
-    print "making ",name
+    print name,
     plt.clf();mcplot.plot(ra,dec,maglim,vmin=17);
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
@@ -559,7 +600,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir, title="") :
     plt.savefig(name)
 
     name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-prob-eq.png")
-    print "making ",name
+    print name,
     plt.clf();mcplot.plot(ra,dec,prob)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
@@ -567,7 +608,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir, title="") :
     plt.savefig(name)
 
     name = os.path.join(data_dir,str(simNumber)+"-"+str(slot)+"-probXligo-eq.png")
-    print "making ",name
+    print name
     plt.clf();mcplot.plot(ra,dec,prob*ligo)
     plt.plot(desx,desy,color="w")
     plt.xlabel("RA");plt.ylabel("Dec")
@@ -596,7 +637,7 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
     title = title + "      {}".format(simNumber)
 
 
-    print "plotMapAndHex.mapAndHex(figure, ", simNumber, ",", slot, ",", data_dir, ",", nslots, ",ra,dec,", title,") "
+    print "making plotMapAndHex.mapAndHex(figure, ", simNumber, ",", slot, ",", data_dir, ",", nslots, ",ra,dec,", title,") "
     d=plotMapAndHex.mapAndHex(figure, simNumber, slot, data_dir, nslots, ra, dec, title, slots=slotNumbers) 
     return d
 

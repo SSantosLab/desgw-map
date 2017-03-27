@@ -110,7 +110,7 @@ def fix_obs(gw_obs, all_filter_wide_queue):
         return gw_obs
 
     fixed_obs = deepcopy(nearest_wide_obs)
-    for kw in ['count','seqid','seqnum','seqtot','note','comment']:
+    for kw in ['count','seqid','seqnum','seqtot','note','comment','propid']:
         fixed_obs[kw] = gw_obs[kw]
 
     for kw in ['count','seqtot','seqnum']:

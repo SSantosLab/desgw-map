@@ -39,77 +39,42 @@ def selectSingleSim (
 # Get the NS models
 #    Definitively a prep into memory routine
 #
-def veni( do2015=True) :
-    dir = "/data/des30.a/data/annis/des-gw/ligo/"
-    #simsFile = "sims.list"
-    #sims = np.genfromtxt(dir+simsFile, unpack=True)
-
-    if do2015:
+def veni( ) :
+    type = "BBH"
+    if type == "2015" :
+        dir = "/data/des30.a/data/annis/des-gw/ligo/"
         simsFile = "2015_inj.txt"
-    else :
+        sims, mjds, distances = np.genfromtxt(dir+simsFile, unpack=True, skiprows=40, usecols=(0,2,8))
+        sims = sims.astype("int")
+    elif type == "2016" :
+        dir = "/data/des30.a/data/annis/des-gw/ligo/"
         simsFile = "2016_inj.txt"
-    sims, mjds, distances = np.genfromtxt(dir+simsFile, unpack=True, skiprows=40, usecols=(0,2,8))
-    sims = sims.astype("int")
-
+        sims, mjds, distances = np.genfromtxt(dir+simsFile, unpack=True, skiprows=40, usecols=(0,2,8))
+        sims = sims.astype("int")
+    elif type == "BBH" :
+        import glob
+        dir = "/data/des30.a/data/annis/des-gw/ligo/burst/2015/"
+        file_list = glob.glob(dir+"BBH_LIB/*LIB_C.fits.gz")
+        gps = np.genfromtxt(dir+"all_BF2Y-2015-BBH_index.txt", unpack=True, skip_header=1, usecols=0)
+        sims  = np.genfromtxt(dir+"all_BF2Y-2015-BBH_index.txt", unpack=True, skip_header=1, usecols=1, dtype="str")
+        distances= np.ones(sims.size)*20.0
+        mjds = gpsToMjd(gps)
+    else :
+        raise Exception("no sim package known of type {}".format(type))
     models = modelRead.getModels()
     return sims, mjds, distances, models
 
-#==== a version of big routine #2 to do Hsin-yu Chen's program
-def vidiHYC(sims, mjds, distances, models, do2015=True) :
-    import os.path
-    import getHexObservations
-    if do2015:
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
-    else :
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
-    file = "bayestar-{:d}.fits.gz"
-    for sim, mjd, distance in zip(sims,mjds,distances) :
-        simfile = file.format(sim)
-        distance = 60.
-        print "sim, distance: ", sim, distance
-        name = "probabilityTimesCache_"+str(sim)+".txt"
-        if os.path.exists(name) : continue
-
-        simfile = data_dir+simfile
-
-        prob, time = getHexObservations.prepare(simfile, mjd, sim,
-            odata_dir, saveHexalationMap=False, doOnlyMaxProbability=True)
-        fd = open(odata_dir+"max_times_and_probs.txt","a")
-        fd.write("{} {} {}\n".format(sim,prob[0], time[0], mjd+time[0]))
-        #fd.write("{} {} {} {}\n".format(sim,prob[0], time[0], mjd+time[0]))
-        fd.close()
-def vidiHYC2 (do2015=True, thresh=0.50, outfile="") :
-    import cumul
-    import healpy as hp
-    if do2015:
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
-    else :
-        data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
-        odata_dir = "/data/des30.a/data/annis/des-gw/hyc/"
-    file = "bayestar-{:d}.fits.gz"
-    infile = odata_dir + "max_times_and_probs.txt"
-    if outfile == "" :
-        outfile = odata_dir + "max_probs_and_areas.txt"
-    sims, probs, times = np.genfromtxt(infile, unpack=True)
-    areas = np.array([])
-    for sim,prob in zip(sims,probs) :
-        sim = int(sim)
-        print "sim, probability: ", sim, prob
-        if prob == 0.0 :
-            area = 41252.9612494
-        else :
-            simfile = data_dir + file.format(sim)
-            ra,dec,ligo = hp2np.hp2np(odata_dir+"{}-0-map.hp".format(sim))
-            probMap = hp.read_map(odata_dir+"{}-0-probMap.hp".format(sim))
-            nsides = hp.get_nside(ligo)
-            area = cumul.area(ra,dec,ligo*probMap, thresh, nsides)
-        areas = np.append(areas, area)
-    data = np.array([sims, probs, times, areas]).T
-    np.savetxt(outfile, data, "%d %f %.5f %.1f")  
-
+def gpsToMjd (gps):
+    """ 
+The BBH sims are given a time in gps seconds.
+This is seconds since 0:0:0 6-Jan-1980 and as of 2016 is 17 seconds ahead of UTC
+We take this zeropoint time to be MJD= 44244.0.
+    This routine corrects for the 17 seconds, which means it becomes progressively
+    less accuate as the date moves away from 2016.
+    """
+    days = (gps-17.0)/3600./24.
+    mjd = days + 44244.0
+    return mjd
 
 #==== Big routine # 2: find the probabilities over 10 days
 #
@@ -120,19 +85,30 @@ def vidiHYC2 (do2015=True, thresh=0.50, outfile="") :
 #           test: ix=np.nonzero((sims==10934)|(sims==1087))
 #           allMaps.vidi(sims[ix], mjds[ix], distances[ix], models)
 #
-def vidi(sims, mjds, distances, models, do2015=True, quick=True) :
+def vidi(sims, mjds, distances, models, quick=False) :
     import os.path
-    if do2015:
+    type = "BBH"
+    if type == "2015" :
         data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims/"
         odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2015-out/"
         #odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2015-out/"
         odata_dir = "/data/des30.a/data/annis/des-gw/nsims-2015-out/"
-    else :
+        file = "bayestar-{:d}.fits.gz"
+        trigger_type = "NS"
+    elif type == "2016" :
         data_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016/"
         odata_dir = "/data/des30.a/data/annis/des-gw/ligo/sims-2016-out/"
         #odata_dir = "/data/des30.a/data/annis/des-gw/ligo/nsims-2016-out/"
         odata_dir = "/data/des30.a/data/annis/des-gw/nsims-2016-out/"
-    file = "bayestar-{:d}.fits.gz"
+        file = "bayestar-{:d}.fits.gz"
+        trigger_type = "NS"
+    elif type == "BBH" :
+        data_dir = "/data/des30.a/data/annis/des-gw/ligo/burst/2015/"
+        odata_dir = "/data/des30.a/data/annis/des-gw/ligo/burst/out2015/"
+        file = "BBH_LIB/{:s}-LIB_C.fits.gz"
+        trigger_type = "BH"
+    else :
+        raise Exception("no sim package known of type {}".format(type))
     outfile = odata_dir + "mainInjector-sim-mjd-dist-bslot-nslot-probcovered-econ_area-need_area-quality.txt"
     fd = open(outfile,"w"); fd.close()
     counter = 0
@@ -143,10 +119,14 @@ def vidi(sims, mjds, distances, models, do2015=True, quick=True) :
         outdir = odata_dir + str(sim) + "/"
         name = outdir + str(sim)+"-probabilityPlot.png"
         if not quick  and os.path.exists(name) : continue
+        if not os.path.exists(simfile): 
+            print ".... skipping as no such file"; 
+            continue
 
         best_slot, n_slots, first_slot, \
             econ_prob, econ_area, area_need, quality = \
-            mainInjector (sim, simfile, mjd, distance, outdir, quick=quick)
+            mainInjector (sim, simfile, mjd, distance, trigger_type, outdir, 
+            recycler_mjd=mjd+(0.5/24.), quick=quick)
         fd=open(outfile,"a")
         fd.write("{} {} {} {} {} {} {} {} {}\n".format(sim, mjd, distance, \
             best_slot, n_slots,  econ_prob, econ_area, area_need,\
@@ -156,17 +136,63 @@ def vidi(sims, mjds, distances, models, do2015=True, quick=True) :
         #if counter >= 21 : raise Exception("im done here")
         
 #
+#  so what hexes did we do, given the json files?
+def gethexIDfromJson (dir = "/data/des30.a/data/annis/des-gw/Jan4-2017-event/GW170104_night1_json/",
+        verbose=True) :
+    import json; import glob
+    import os
+    import hexalate
+    cwd = os.getcwd(); print cwd
+    os.chdir(dir)
+    files = glob.glob("*.json")
+    nfiles=len(files);
+    ra = np.array([])
+    dec = np.array([])
+    slot = np.array([])
+    for n in range(nfiles) :
+        print files[n]
+        fd=open(files[n],"r"); data=json.load(fd);fd.close()
+        for i in range(len(data)): 
+            ra = np.append(ra, data[i]["RA"])
+            dec = np.append(dec, data[i]["dec"])
+            slot = np.append(slot, files[n][9:11])
+            if verbose: print data[i]["RA"],data[i]["dec"],files[n][9:11]
+
+    os.chdir(cwd)
+    id = hexalate.getHexId(ra,dec)
+    return ra,dec,id, slot
+def gethexIDfromDB() :
+    import hexalate
+    file="/data/des30.a/data/annis/des-gw/Jan4-2017-event/GW170104_exp_table_night1.txt"
+    file="/data/des30.a/data/annis/des-gw/Jan4-2017-event/GW170104_exp_table_night1_2.txt" 
+    ra,dec = np.genfromtxt(file, unpack=True,usecols=(1,2)); 
+    ii=ra>180; ra[ii] = ra[ii]-360
+    id = hexalate.getHexId(ra,dec)
+    id = np.unique(id)
+    return id
+#
+# shall we run the hexes from a ra-dec-id-prob-mjd-slot.tx file?
+def hexID (file = "../Jan4-2017-event/GW170104-ra-dec-id-prob-mjd-slot.txt") :
+    ra,dec = np.genfromtxt(file, unpack=True,usecols=(0,1) )
+    id = np.genfromtxt(file, unpack=True,usecols=(2), dtype = "str" )
+    # for GW170104; doing this cut does the obs right, not doing makes the gif cover better area
+    ix = ra < 100; ra = ra[ix]; dec = dec[ix]; id = id[ix]
+    return ra,dec,id
+#
 # trigger_type = "NS" or "BH"
 #
-def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
-        outputDir, recycler_mjd=57350.0, \
+def mainInjector (trigger_id, skymap, trigger_type,\
+        outputDir, recycler_days_since_burst=0.3, 
         hexID_to_do=[], hexID_to_reject=[], 
         hours_used_by_NS=0, hours_used_by_BH=0,
-        quick=False) :
+        halfNight = False, firstHalf= True,
+        quick=False, debug=False) :
 
     import os
     import yaml
     import getHexObservations
+    skipEcon = False
+    skipEcon = True
 
     with open("maininjector.yaml","r") as f:
         config = yaml.safe_load(f); 
@@ -192,8 +218,8 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
     hoursAvailable_bh = config["time_budget_for_BH"]
     lostToWeather_ns  = config["hours_lost_to_weather_for_NS"]
     lostToWeather_bh  = config["hours_lost_to_weather_for_BH"]
-    rate_bh           = config["rate_of_bh_in_O2"];# events/day
-    rate_ns           = config["rate_of_ns_in_O2"];# events/day
+    rate_bh           = config["rate_of_bh_in_O2"];# events/year
+    rate_ns           = config["rate_of_ns_in_O2"];# events/year
 
 
     # configure strategy for the event type
@@ -208,6 +234,7 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
         for i in range (1,nepochs+1) :
             epochs        = np.append(epochs, config["epoch{}_NS".format(i)])
         end_date          = config["enddate_NS"]
+        distance          = -999
     elif trigger_type == "BH" :
         hoursAvailable       = hoursAvailable_bh - lostToWeather_bh - hours_used_by_BH
         rate                 = rate_bh
@@ -219,8 +246,10 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
         for i in range (1,nepochs+1) :
             epochs        = np.append(epochs, config["epoch{}_BH".format(i)])
         end_date          = config["enddate_BH"]
+        distance          = 1.0
     else :
-        raise Exception("trigger_type={}  ! Can only compute BH or NS".format(trigger_type))
+        raise Exception(
+            "trigger_type={}  ! Can only compute BH or NS".format(trigger_type))
     exposure_length   = np.array(exposure_length)
     
     if not os.path.exists(outputDir):
@@ -231,27 +260,45 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
         skipAll = True
     else :
         skipAll = False
-    resolution = 256 ;# default, quick
-    #resolution = 512 ;# native resolution of the LMC event
-    probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
-        skymap, mjd, trigger_id, outputDir, outputDir, distance=distance,
+    resolution = 256 ;# default, resolution element on order of ccd area size
+    resolution = 128 ;# roughly 4 ccds
+    #resolution = 64 ;# very fast, debuging, roughly 1/4 of the camera size
+    if debug :
+        return getHexObservations.prepare(
+        skymap, trigger_id, outputDir, outputDir, distance=distance,
         exposure_list=exposure_length, filter_list=filter_list,
         overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
+        start_days_since_burst = recycler_days_since_burst, 
+        skipHexelate=False, skipAll = skipAll,
         this_tiling = hexID_to_do, reject_hexes = hexID_to_reject, 
-        skipAll=skipAll, resolution=resolution)
-        #skipHexelate=True, skipAll=False)
+        resolution=resolution, trigger_type=trigger_type, 
+        halfNight = halfNight, firstHalf= firstHalf, debug=debug)
+    probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
+        skymap, trigger_id, outputDir, outputDir, distance=distance,
+        exposure_list=exposure_length, filter_list=filter_list,
+        overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
+        start_days_since_burst = recycler_days_since_burst, 
+        skipHexelate=False, skipAll = skipAll,
+        this_tiling = hexID_to_do, reject_hexes = hexID_to_reject, 
+        resolution=resolution, trigger_type=trigger_type,
+        halfNight = halfNight, firstHalf= firstHalf)
                 
     # figure out how to divide the night
     n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
         probs, times, hoursPerNight=hoursPerNight,
         hoursAvailable=hoursAvailable)
 
+    if quick :
+        skipJson = True; 
+    else :
+        skipJson = False; 
     # compute the best observations
     best_slot = getHexObservations.now( 
         n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
         maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
         exposure_list=exposure_length, filter_list=filter_list, 
-        trigger_type = trigger_type, skipJson =True)
+        trigger_type = trigger_type, skipJson =skipJson)
+
 
     if n_slots > 0 :
 #   area_left is the number of hexes we have left to observe this season
@@ -262,51 +309,60 @@ def mainInjector (trigger_id, skymap, mjd, distance, trigger_type,\
         area_left =  area_per_hex * (hoursAvailable * 3600)/(time_cost_per_hex)
         time_left = end_of_season - start_of_season
 
-        # do Hsun-yu Chen's 
-        print "======================================>>>>>>>>>>>>>>>>>>"
-        print " economics "
-        print "getHexObservations.economics (", trigger_id, ",",\
-            best_slot, ", mapDirectory= \"",outputDir, "\" ,",\
-            "area_left=",area_left, ", days_left=",time_left, ",rate=",rate,") "
-        print "======================================>>>>>>>>>>>>>>>>>>"
-        econ_prob, econ_area, need_area, quality = \
-            getHexObservations.economics (trigger_id, 
-                best_slot, mapDirectory=outputDir, 
-                area_left=area_left, days_left=time_left, rate=rate) 
-
-        if econ_area > 0.0 :
-            hoursOnTarget = (econ_area/area_per_hex ) * (time_cost_per_hex/3600.)
-
-            # figure out how to divide the night, 
-            # given the new advice on how much time to spend
-
-            n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
-                probs, times, hoursPerNight=hoursPerNight,
-                hoursAvailable=hoursOnTarget)
-
-            if quick :
-                skipJson = True; 
-            else :
-                skipJson = False; 
-            best_slot = getHexObservations.now( 
-                n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
-                maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
-                exposure_list=exposure_length, filter_list=filter_list, 
-                trigger_type = trigger_type, skipJson =True)
+        if skipEcon :
+            print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            print "!!!!!!!!!!!!!     SKIPPING ECON ANALYSIS!  !!!!!!!!!!"
+            print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            econ_prob, econ_area, quality = 0,0, 1.0
+            need_area = 11734.0 
+        # we may want to evaluate each event independently
+        if not skipEcon: 
+            # do Hsun-yu Chen's 
+            print "======================================>>>>>>>>>>>>>>>>>>"
+            print " economics "
+            print "getHexObservations.economics (", trigger_id, ",",\
+                best_slot, ", mapDirectory= \"",outputDir, "\" ,",\
+                "area_left=",area_left, ", days_left=",time_left, ",rate=",rate,") "
+            print "======================================>>>>>>>>>>>>>>>>>>"
+            econ_prob, econ_area, need_area, quality = \
+                getHexObservations.economics (trigger_id, 
+                    best_slot, mapDirectory=outputDir, 
+                    area_left=area_left, days_left=time_left, rate=rate) 
+    
+            if econ_area > 0.0 :
+                hoursOnTarget = (econ_area/area_per_hex ) * (time_cost_per_hex/3600.)
+    
+                # figure out how to divide the night, 
+                # given the new advice on how much time to spend
+    
+                n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
+                    probs, times, hoursPerNight=hoursPerNight,
+                    hoursAvailable=hoursOnTarget)
+    
+                best_slot = getHexObservations.now( 
+                    n_slots, mapDirectory=outputDir, simNumber=trigger_id, 
+                    maxHexesPerSlot=maxHexesPerSlot, mapZero=first_slot, 
+                    exposure_list=exposure_length, filter_list=filter_list, 
+                    trigger_type = trigger_type, skipJson =skipJson)
     else :
-        econ_prob = 0
-        econ_area = 0
-        best_slot = 0
+        econ_prob, econ_area, quality = 0,0, 1.0
         need_area = 11734.0 
-        quality = 1.0
 
     if not quick :
         if n_slots > 0 :
             # make observation plots
+            print "We're going to do {} slots with best slot {}".format(n_slots, best_slot)
             n_plots = getHexObservations.makeObservingPlots(
                 n_slots, trigger_id, best_slot, outputDir, outputDir)
+            string = "$(ls -v {}-observingPlot*)  {}_animate.gif".format(trigger_id, trigger_id)
+            os.system("convert  -delay 40 -loop 0  " + string)
         else :
             n_plots = getHexObservations.nothingToObserveShowSomething(trigger_id, outputDir, outputDir)
+
+    # Lets find out how well we did in covering Ligo probability
+    getHexObservations.how_well_did_we_do(skymap, trigger_id, outputDir)
 
     return best_slot, n_slots, first_slot, econ_prob, econ_area, need_area, quality
 

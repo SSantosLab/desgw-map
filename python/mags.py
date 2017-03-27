@@ -20,7 +20,7 @@ license="""
    More to the points- this code is science code: buggy, barely working,
    with little or no documentation. Science code in the the alpine fast 
    & light style. (Note the rate at which people who stand on the
-   summit of K2 to successfully make it down.)
+   summit of K2 successfully make it down.)
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -84,12 +84,6 @@ class observed(object):
         self.moonPhase    = self.getLunarPhase()
 
         # telescope limits
-        ##tel_dir           = data_dir
-        #tel_file          = "blanco-limits-ha-dec.fits"
-        #ha,dec,ttlim      = telescope.loadLimits(tel_dir, tel_file)
-        #self.tel_ha       = ha
-        #self.tel_dec      = dec
-        #self.ttlim        = ttlim
         self.limits       = 0.0
 
         # galactic dust
@@ -106,7 +100,7 @@ class observed(object):
         print "\t loading inverse stellar density = probability of recognition map"
         ra,dec,precog     = hp2np.hp2np(data_dir + "precognize.fits")
         if degradeRes :
-            ra,dec,precog = hp2np.map2np (precog, resolution=self.nside)
+            ra,dec,precog = hp2np.map2np (precog, resolution=self.nside, fluxConservation=False)
         self.pra          = ra
         self.pdec         = dec
         self.precog       = precog
@@ -135,7 +129,7 @@ class observed(object):
         self.moonSep      = self.getLunarSeparation(self.ra, self.dec, self.moonData)
 
     def limitMag (self, filter, exposure=30) :
-        print "\t limiting magnitude"
+        #print "\t limiting magnitude"
         mjd       = self.mjd
         zd        = self.zd
         sun_zd    = self.sunZD
@@ -387,6 +381,6 @@ def findNightDuration(mjd) :
         if sunset != "" and sunrise == "" and bright == True :
             sunrise = mjd
     duration = sunrise-sunset
-    return duration
+    return duration, sunset, sunrise
 
 

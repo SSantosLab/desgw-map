@@ -29,8 +29,8 @@ license="""
 #   fluxConservation = False => averaging maps when changing resolution
 #   fluxConservation = True => sums maps when changing resolution
 #
-def hp2np (hp_map_file, nan=True, degrade=False, fluxConservation=False) :
-    hm = hp.read_map(hp_map_file)
+def hp2np (hp_map_file, nan=True, degrade=False, fluxConservation=True, field=0) :
+    hm = hp.read_map(hp_map_file, field=field)
     ra,dec,vals = map2np(hm, resolution=degrade, fluxConservation=fluxConservation)
     return ra,dec,vals
 
@@ -41,7 +41,7 @@ def hp2np (hp_map_file, nan=True, degrade=False, fluxConservation=False) :
 # Often this is inconvenient. 
 #
 # Give me, ra, dec, val.
-def map2np (hp_map, resolution=False, fluxConservation=False) :
+def map2np (hp_map, resolution=False, fluxConservation=True) :
     nside = hp.npix2nside(len(hp_map))
     print "\t map2np: \t res= ", nside
     if resolution :
