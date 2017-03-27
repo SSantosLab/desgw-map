@@ -260,6 +260,7 @@ def how_well_did_we_do(skymap, simNumber, data_dir) :
     raH, decH = np.genfromtxt(name, unpack=True, usecols=(0,1))
     sum = decam2hp.hexalateMapTested(ra,dec,ligo,raH,decH); 
     print "\nTotal Ligo probability covered by hexes observed: :",sum.sum()
+    return sum.sum()
 
 # ===== The economics analysis
 #
