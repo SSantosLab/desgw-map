@@ -273,6 +273,7 @@ def mainInjector (trigger_id, skymap, trigger_type,\
         this_tiling = hexID_to_do, reject_hexes = hexID_to_reject, 
         resolution=resolution, trigger_type=trigger_type, 
         halfNight = halfNight, firstHalf= firstHalf, debug=debug)
+
     probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
         skymap, trigger_id, outputDir, outputDir, distance=distance,
         exposure_list=exposure_length, filter_list=filter_list,
@@ -362,7 +363,8 @@ def mainInjector (trigger_id, skymap, trigger_type,\
             n_plots = getHexObservations.nothingToObserveShowSomething(trigger_id, outputDir, outputDir)
 
     # Lets find out how well we did in covering Ligo probability
-    getHexObservations.how_well_did_we_do(skymap, trigger_id, outputDir)
+    sum_ligo_prob = \
+        getHexObservations.how_well_did_we_do(skymap, trigger_id, outputDir)
 
     return best_slot, n_slots, first_slot, econ_prob, econ_area, need_area, quality
 

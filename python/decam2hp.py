@@ -135,7 +135,8 @@ def radecInHexTested ( raCenter, decCenter, ra, dec) :
     return near_ix
 
 
-def buildtree(ra,dec,nsides=1024,recompute=False, wrapForMetricEval=False) :
+def buildtree(ra,dec,nsides=1024,recompute=False, \
+        wrapForMetricEval=False, dumpTree = False) :
     # I think doing this using a tree requires a projection we will
     # use a Sanon-Flamsteed projection (aka sinusoidal, x=ra*cos(dec), y=dec)
     import scipy.spatial
@@ -158,7 +159,7 @@ def buildtree(ra,dec,nsides=1024,recompute=False, wrapForMetricEval=False) :
         ra,dec,tree = cPickle.load(open(file,"rb"))
     else :
         tree = scipy.spatial.cKDTree(zip(ra*np.cos(dec*2*np.pi/360.),dec))
-        cPickle.dump([ra,dec,tree],open(file,"wb"))
+        if dumpTree: cPickle.dump([ra,dec,tree],open(file,"wb"))
 
     # 180 is center of map (i.e, 0 is at singularity)
     ra0 = np.copy(ra); dec0 = dec
@@ -176,7 +177,7 @@ def buildtree(ra,dec,nsides=1024,recompute=False, wrapForMetricEval=False) :
         ra0,dec0,tree0 = cPickle.load(open(file,"rb"))
     else :
         tree0 = scipy.spatial.cKDTree(zip((ra0-180.)*np.cos(dec0*2*np.pi/360.),dec0))
-        cPickle.dump([ra0,dec0,tree0],open(file,"wb"))
+        if dumpTree: cPickle.dump([ra0,dec0,tree0],open(file,"wb"))
     return ra,dec,tree, ra0, dec0, tree0
     
 def radecInHexPath ( hex_path, ra, dec) :
