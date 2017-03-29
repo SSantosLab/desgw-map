@@ -320,7 +320,8 @@ def economics (simNumber, best_slot, mapDirectory,
 #
 # ====== there are possibilities. Show them.
 #
-def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
+def makeObservingPlots(nslots, simNumber, best_slot, data_dir, 
+        mapDirectory, allSky = False) :
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
     print "makeObservingPlots(",nslots, simNumber, best_slot,data_dir," )"
     print "================ >>>>>>>>>>>>>>>>>>>>> =================== "
@@ -352,7 +353,7 @@ def makeObservingPlots(nslots, simNumber, best_slot, data_dir, mapDirectory) :
                 obsTime = slotMjd
             #print "\t making observingPlot-{}.png".format(i)
             observingPlot(figure,simNumber,i,mapDirectory, nslots,
-                extraTitle=obsTime)
+                extraTitle=obsTime, allSky=allSky)
             name = str(simNumber)+"-observingPlot-{}.png".format(i)
             plt.savefig(os.path.join(mapDirectory,name))
             counter += 1
@@ -620,7 +621,8 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir, title="") :
 
 # modify mcbryde to have alpha=center of plot
 #   "slot" is roughly hour during the night at which to make plot
-def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
+def observingPlot(figure, simNumber, slot, data_dir, nslots, \
+        extraTitle="", allSky=False) :
     import plotMapAndHex
 
     # get the planned observations
@@ -639,7 +641,7 @@ def observingPlot(figure, simNumber, slot, data_dir, nslots, extraTitle="") :
 
 
     print "making plotMapAndHex.mapAndHex(figure, ", simNumber, ",", slot, ",", data_dir, ",", nslots, ",ra,dec,", title,") "
-    d=plotMapAndHex.mapAndHex(figure, simNumber, slot, data_dir, nslots, ra, dec, title, slots=slotNumbers) 
+    d=plotMapAndHex.mapAndHex(figure, simNumber, slot, data_dir, nslots, ra, dec, title, slots=slotNumbers, allSky=allSky) 
     return d
 
 

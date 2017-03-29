@@ -30,7 +30,7 @@ def plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax) :
 # reload(plotMapAndHex);plotMapAndHex.mapAndHex(figure, "G211117",0,"/data/des30.a/data/annis/des-gw/Christmas16-event/maps/", 8, raHex, decHex, "" )
 #
 def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec, 
-        title="", colorbar=True, slots=np.zeros(0)) :
+        title="", colorbar=True, slots=np.zeros(0), allSky=False) :
     import healpy as hp
     import hp2np
 
@@ -95,7 +95,7 @@ def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec,
         low_limit, high_limit, ligoMap, origLigoMap, doLigoMap=True, doOrigLigoMap=doOrigLigoMap,
         resolution=resolution, image=image, scale=scale, badData=badData, badDataVal=badDataVal,
         redRa = redRa, title=title, raMid=raMid, raBoxSize=raBoxSize, decBoxSize = decBoxSize, 
-        mod_ra=mod_ra, mod_dec= mod_dec , colorbar=colorbar, slots=slots, thisSlot=slot)
+        mod_ra=mod_ra, mod_dec= mod_dec , colorbar=colorbar, slots=slots, thisSlot=slot, allSky = allSky)
 
     return alpha,beta
 
@@ -104,7 +104,7 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
         resolution=512, image=False, scale=1., badData=False, badDataVal=-11.0,
         redRa = 90., title="", raMid=-1000, raBoxSize=5., decBoxSize=5., mod_ra = 0, mod_dec=0.,
         doHexes = True, gradRedHiDec = -80, raGratDelRa=30., decGratDelDec=10. , colorbar=True,
-        contourLabels=True , slots=np.zeros(0), thisSlot=0) :
+        contourLabels=True , slots=np.zeros(0), thisSlot=0, allSky = False) :
     from equalArea import mcbryde
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -121,7 +121,7 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
     # compute the image limits and midpoints (alpha, beta)
     raMin, raMax, decMin, decMax, xmin, xmax, ymin, ymax, alpha, beta = \
         computeLimits (hexRa, hexDec, raMid=raMid, raBoxSize=raBoxSize, 
-        decBoxSize=decBoxSize, mod_ra=mod_ra, mod_dec = mod_dec) 
+        decBoxSize=decBoxSize, mod_ra=mod_ra, mod_dec = mod_dec, allSky = allSky) 
     #j,j,s_hexRa, s_hexDec = lmcHexes()
     #raMin, raMax, decMin, decMax, xmin, xmax, ymin, ymax, alpha, beta = \
     #    computeLimits (s_hexRa,s_hexDec, raMid=raMid, raBoxSize=raBoxSize, 
@@ -159,13 +159,13 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
 
     # put on a graticule
     graticule (alpha, beta, xmin, xmax, ymin, ymax,  redRa = redRa, redRaDec2 = gradRedHiDec,
-        raGratDelRa= raGratDelRa, decGratDelDec= decGratDelDec )
+        raGratDelRa= raGratDelRa, decGratDelDec= decGratDelDec)
 
     # fig 1
     ax = figure.add_subplot(1,1,1)
     plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax)
 
-    if colorbar:
+    if colorbar and not allSky:
         cb = plt.colorbar(shrink=0.5,pad=0.03); 
         cb.set_label("5$\sigma$ point source limiting magnitude")
 
@@ -223,36 +223,65 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
     return alpha, beta
 
 # compute image limits and midpoints (alpha, beta)
-def computeLimits (raHex, decHex, raMid = -1000, raBoxSize=5., decBoxSize=5, mod_ra=0, mod_dec=0) :
+def computeLimits (raHex, decHex, raMid = -1000, raBoxSize=5., decBoxSize=5, mod_ra=0, mod_dec=0, allSky = False) :
     from equalArea import mcbryde
     verbose = False
     mod_alpha = 0
     mod_beta = 0
-    decMin = decHex.min()-decBoxSize+mod_dec
-    decMax = decHex.max()+decBoxSize+mod_dec
+    if allSky :
+        decMin = -89.9999; decMax = 89.9999
+        raMin = -179.9999; raMax = 179.9999
+        raBoxSize = 0.; decBoxSize = 0.
+        mod_dec = 0; mod_ra = 0
+    else :
+        # autoscaling
+        decMin = decHex.min(); decMax = decHex.max()
+        raMin = raHex.min(); raMax = raHex.max()
+    decMin = decMin-decBoxSize+mod_dec
+    decMax = decMax+decBoxSize+mod_dec
     decMid = decMin+(decMax-decMin)/2.
     beta=-1*(decMid+mod_beta)
     boxRa = raBoxSize/np.cos(decMid*2*np.pi/360.)
-    raMin = raHex.min()-boxRa+mod_ra
-    raMax = raHex.max()+boxRa+mod_ra
+    raMin = raMin-boxRa+mod_ra
+    raMax = raMax+boxRa+mod_ra
     if raMid == -1000 :
         raMid = raMin+(raMax-raMin)/2.
     alpha= -1*(raMid+mod_alpha)
 
-    x,y = mcbryde.mcbryde(raHex, decHex, alpha=alpha, beta=beta)
-    xbox = 0.1*(x.max()-x.min())
-    ybox = 0.1*(y.max()-y.min())
-    xmin = x.min()-xbox; xmax = x.max()+xbox
-    ymin = y.min()-ybox; ymax= y.max()+ybox
+    print "\t raMin, raMax, decMin, decMax:", raMin, raMax, decMin, decMax
+    #raise Exception
+    if allSky :
+        #x,y = mcbryde.mcbryde(np.array([-179.999,179.999]), np.array([-60,60]), alpha=alpha, beta=beta)
+        #decMin = -60; decMax = 60.0
+        x,y = mcbryde.mcbryde(np.array([raMin,raMax]), np.array([-1,1]), alpha=alpha, beta=beta)
+        xmin = x.min(); xmax = x.max()
+        x,y = mcbryde.mcbryde(np.array([-1,1]), np.array([decMin,decMax]), alpha=alpha, beta=beta)
+        ymin = y.min(); ymax = y.max()
+        xbox = 0.01*(xmax-xmin)
+        ybox = 0.01*(ymax-ymin)
+    else :
+        # autoscaling
+        x,y = mcbryde.mcbryde(raHex, decHex, alpha=alpha, beta=beta)
+        xmin = x.min(); xmax = x.max()
+        ymin = y.min(); ymax = y.max()
+        xbox = 0.1*(xmax-xmin)
+        ybox = 0.1*(ymax-ymin)
+    xmin = xmin-xbox; xmax = xmax+xbox
+    ymin = ymin-ybox; ymax= ymax+ybox
 
     if verbose:
         print "ra box, dec box",raMin, raMax, decMin, decMax
         print "x box, y box", xmin, xmax, ymin, ymax 
         print "alpha, beta",alpha, beta
+    #raw_input("wait for human to press")
     return raMin, raMax, decMin, decMax, xmin, xmax, ymin, ymax, alpha, beta
 
+# @profile
 def makeImage (xMap, yMap, vals, xmin, xmax, ymin, ymax, scale, 
         badData=False, badDataVal=-11.0, verbose=False, too_far_away_scale=1.5) :
+    import scipy.spatial
+    tree = scipy.spatial.KDTree(zip(xMap, yMap))
+
     xsize = int(xmax)+1 - int(xmin)-1 
     ysize = int(ymax)+1 - int(ymin)-1 
     nsteps_x = int(xsize*scale)
@@ -263,21 +292,22 @@ def makeImage (xMap, yMap, vals, xmin, xmax, ymin, ymax, scale,
     
     if verbose: print xmin, xmax, ymin, ymax, "    ", xsize, ysize
     
+    # this is "supposed" to be slow
     for i in range(0, nsteps_x) :
         for j in range (0, nsteps_y) :
             xpix= i*step_size  + xmin
             ypix= j*step_size  + ymin 
-            idx = np.argmin((xMap - xpix)**2+(yMap - ypix)**2)
+            
+            d= tree.query([xpix,ypix])
+            dist = d[0]; idx=d[1]
             val = vals[idx]
-            if (xMap[idx] - xpix)**2+(yMap[idx] - ypix)**2 > too_far_away_scale**2:
-                val=badDataVal
+            if dist > too_far_away_scale: val=badDataVal
             data[nsteps_y-j-1,i] = val
     
     if badData:
         data = np.ma.masked_equal(data, badDataVal)
     if verbose: print data.mean()
     return data
-             
 
 def getOriginalLigoMap (mapName, resolution) :
     import healpy as hp
@@ -286,12 +316,12 @@ def getOriginalLigoMap (mapName, resolution) :
     secondRa,secondDec,secondLigo = hp2np.map2np(secondLigo, resolution)
     return secondRa, secondDec, secondLigo
 
-
+# one could put raGratDec2 = 50 and decGratDec2 = 50 for a smaller plot
 def graticule (alpha, beta, xmin, xmax, ymin, ymax, 
-         raGratRa1=-180, raGratRa2=180, raGratDelRa=30., 
-        raGratDec1=-90, raGratDec2=50, raGratDelDec= 0.1 ,
-        decGratRa1=-179, decGratRa2=180, decGratDelRa=0.1, 
-        decGratDec1=-80, decGratDec2=50, decGratDelDec=10,
+         raGratRa1=-179.99, raGratRa2=181, raGratDelRa=30., 
+        raGratDec1=-89.99, raGratDec2=91, raGratDelDec= 0.1 ,
+        decGratRa1=-179.99, decGratRa2=181, decGratDelRa=0.1, 
+        decGratDec1=-89.99, decGratDec2=91, decGratDelDec=10,
         redRa = 90., redRaDec1=-90, redRaDec2=-80, redRaDelDec = 0.1) :
     import matplotlib.pyplot as plt
     from equalArea import mcbryde
