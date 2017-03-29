@@ -235,7 +235,6 @@ def computeLimits (raHex, decHex, raMid = -1000, raBoxSize=5., decBoxSize=5, mod
         mod_dec = 0; mod_ra = 0
     else :
         # autoscaling
-    else :
         decMin = decHex.min(); decMax = decHex.max()
         raMin = raHex.min(); raMax = raHex.max()
     decMin = decMin-decBoxSize+mod_dec
@@ -319,9 +318,9 @@ def getOriginalLigoMap (mapName, resolution) :
 
 # one could put raGratDec2 = 50 and decGratDec2 = 50 for a smaller plot
 def graticule (alpha, beta, xmin, xmax, ymin, ymax, 
-         raGratRa1=-179.99, raGratRa2=181, raGratDelRa=30., 
+         raGratRa1=-179.99, raGratRa2=180+30, raGratDelRa=30., 
         raGratDec1=-89.99, raGratDec2=91, raGratDelDec= 0.1 ,
-        decGratRa1=-179.99, decGratRa2=181, decGratDelRa=0.1, 
+        decGratRa1=-179.99, decGratRa2=180+30, decGratDelRa=0.1, 
         decGratDec1=-89.99, decGratDec2=91, decGratDelDec=10,
         redRa = 90., redRaDec1=-90, redRaDec2=-80, redRaDelDec = 0.1) :
     import matplotlib.pyplot as plt
