@@ -235,6 +235,7 @@ def computeLimits (raHex, decHex, raMid = -1000, raBoxSize=5., decBoxSize=5, mod
         mod_dec = 0; mod_ra = 0
     else :
         # autoscaling
+    else :
         decMin = decHex.min(); decMax = decHex.max()
         raMin = raHex.min(); raMax = raHex.max()
     decMin = decMin-decBoxSize+mod_dec
