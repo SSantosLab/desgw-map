@@ -32,7 +32,7 @@ license="""
 # alpha is the degrees to rotate ra
 # beta is the degrees to rotate dec
 #
-def mcbryde (ra,dec, southUp=0, test=0, alpha=0, beta=0) :
+def mcbryde (ra,dec, southUp=0, test=0, alpha=0, beta=0, isLine=False) :
     global psi_spline
     if test: rai = ra; deci=dec
     pi = np.pi
@@ -43,6 +43,10 @@ def mcbryde (ra,dec, southUp=0, test=0, alpha=0, beta=0) :
     #alpha = 0
     #alpha = -80
     ra, dec = mtCoord (ra,dec, alpha, beta) 
+    # the alpha, beta roations play havoc on lines but not maps
+    if isLine :
+        ix = np.argsort(ra)
+        ra = ra[ix]; dec=dec[ix]
 
     try :
         psi = psi_spline(dec)

@@ -1,6 +1,80 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
+# ===== The economics analysis
+#
+#   area_left is th enumber of hexes we have left to observe this season
+#   days_left is the number of days left in the season
+#   rate is the effective rate of triggers
+#       p_gw is that for which the table cumul_table_pgw50.txt was  made.
+#
+def economics (simNumber, best_slot, mapDirectory,
+        area_left=200., days_left=60., rate=1/30.,  p_gw = 0.10) :
+    import healpy as hp
+    import cumul
+    import des_optimization
+    import os
+    gw_data_dir = os.environ["DESGW_DATA_DIR"]
+    ra, dec, ligo, maglim, prob, ha, x,y, hx,hy = \
+        readMaps(mapDirectory, simNumber, best_slot)
+
+    area_bar_p,area_bar = np.genfromtxt(
+        gw_data_dir+"/area_bar_table.txt",unpack=True)
+    avge_cumu_area,avge_cumu = np.genfromtxt(
+        gw_data_dir+"/cumul_table_pgw10.txt",unpack=True)
+
+    obsProb = ligo*prob
+    nsides = hp.get_nside(obsProb)
+    # max area viewable by Blanco at one time is 11734. sq-degrees
+    max_area=11734.
+    area, cum_prob  = cumul.area(ra,dec,obsProb, p_gw, nsides, max_area=max_area)
+    area_to_cover_p_gw = area
+    #print avge_cumu_area
+    #print area
+    ix = np.searchsorted(avge_cumu_area, area)
+    if ix >= avge_cumu_area.size :
+        fraction_of_sims_better_than_this_trigger = 1.0
+    else :
+        fraction_of_sims_better_than_this_trigger = avge_cumu[ix]
+
+    prob, N_max = des_optimization.evaluate_average_event(
+        area_left, days_left, rate, avge_cumu, avge_cumu_area, area_bar, area_bar_p)
+
+    if fraction_of_sims_better_than_this_trigger < 1./N_max :
+        area, cum_prob = cumul.area(ra,dec,obsProb, prob, nsides, max_area=max_area)
+        if area>area_left:
+            print "\t maxing out area: \t {:.3f} -> ".format( cum_prob),
+            cum_prob = cumul.probability_covered(ra,dec,obsProb, area_left, nsides, max_area=max_area)
+            print "{:.3f}".format(cum_prob)
+            area=area_left
+    else :
+        print "\t ignore event"
+        area = 0
+        prob = 0
+
+    probability_covered = cum_prob
+    quality = fraction_of_sims_better_than_this_trigger
+    return probability_covered, area, area_to_cover_p_gw, quality
+
+#========================================================================
+# 
+# support routines
+# 
+#========================================================================
+# for economics analysis
+def time_cost_per_hex (nvisits, overhead, exposure_length) :
+    tot_exptime = (np.array(overhead)+np.array(exposure_length)).sum
+    time_cost_per_hex = nvisits * tot_exptime #sec
+    return time_cost_per_hex
+
+# for economics analysis
+def area_left (area_per_hex, time_budget, time_cost_per_hex) :
+    area_per_hex * (time_budget * 3600)/(time_cost_per_hex)
+    return area_per_hex
+#time_cost_per_hex = nvisits * nexposures * (overhead + exposure_length) #sec
+#area_left =  area_per_hex * (time_budget * 3600)/(time_cost_
+
+
 #how area scale as number of event
 def max_scale(N_max,alpha):
     return (2.*(1.-0.5**(1./N_max)))**(alpha/3.)

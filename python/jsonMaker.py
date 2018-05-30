@@ -28,7 +28,8 @@ import numpy as np
 def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
         exposureList = [90,90,90], 
         filterList = ["i","z","z"],
-        tilingList = [9,9,9], 
+        #tilingList = [9,9,9], 
+        tilingList = [10,10,10], 
         trigger_type = "NS",
         jsonFilename="des-gw.json") :
     offsets = tileOffsets()
@@ -57,7 +58,7 @@ def writeJson(ra,dec,id, seqid="none", seqnum=0, seqtot=0,
             #comment = "DESGW: LIGO {} event {}: {} of {}, hex {} tiling {}".format(
             #    trigger_type, seqid, seqnum, seqtot, id[i], 9)
             comment = "{} event {}: {} of {}, hex {} tiling {}".format(
-                trigger_type, seqid, seqnum, seqtot, id[i], 9)
+                trigger_type, seqid, seqnum, seqtot, id[i], tiling)
             object = comment
 
             fd.write("{")

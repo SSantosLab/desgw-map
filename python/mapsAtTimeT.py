@@ -280,6 +280,7 @@ def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
         #hp.write_map(name, sm.prob)
         name = nameStem + "-probMap.hp"
         if os.path.exists(name): os.remove(name)
+        #sm.probMap = sm.probMap*gal
         hp.write_map(name, sm.probMap)
 
         treedata = decam2hp.buildtree(obs.ra*360./2/np.pi,obs.dec*360./2/np.pi,\

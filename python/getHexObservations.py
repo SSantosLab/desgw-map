@@ -72,6 +72,7 @@ def prepare(skymap, trigger_id, data_dir, mapDir,
     import healpy as hp
     import os
     import fitsio
+    import glob
     hdr = fitsio.read_header(skymap,1)
     burst_mjd = np.float(hdr["mjd-obs"])
     if distance == -999 :
@@ -81,6 +82,18 @@ def prepare(skymap, trigger_id, data_dir, mapDir,
     print "calculation starting at  {:.1f} days since burst\n".format(
          start_days_since_burst)
     start_mjd = burst_mjd + start_days_since_burst
+
+    if not debug: 
+        print "cleaning up"
+        files = glob.glob(mapDir+"/*png"); 
+        for f in files: os.remove(f)
+        files = glob.glob(mapDir+"/*json"); 
+        for f in files: os.remove(f)
+        files = glob.glob(mapDir+"/*hp"); 
+        for f in files: os.remove(f)
+        files = glob.glob(mapDir+"/*txt"); 
+        for f in files: os.remove(f)
+        
 
     exposure_list = np.array(exposure_list)
     filter_list = np.array(filter_list)

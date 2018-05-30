@@ -1,5 +1,7 @@
 import numpy as np
 import os
+from equalArea import mcbryde
+import matplotlib.pyplot as plt
 
 def getDesFootprint () :
     import insideDesFootprint
@@ -30,7 +32,7 @@ def plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax) :
 # reload(plotMapAndHex);plotMapAndHex.mapAndHex(figure, "G211117",0,"/data/des30.a/data/annis/des-gw/Christmas16-event/maps/", 8, raHex, decHex, "" )
 #
 def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec, 
-        title="", colorbar=True, slots=np.zeros(0), allSky=False) :
+        title="", colorbar=True, slots=np.zeros(0), doHexes=True, allSky=False) :
     import healpy as hp
     import hp2np
 
@@ -95,7 +97,8 @@ def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec,
         low_limit, high_limit, ligoMap, origLigoMap, doLigoMap=True, doOrigLigoMap=doOrigLigoMap,
         resolution=resolution, image=image, scale=scale, badData=badData, badDataVal=badDataVal,
         redRa = redRa, title=title, raMid=raMid, raBoxSize=raBoxSize, decBoxSize = decBoxSize, 
-        mod_ra=mod_ra, mod_dec= mod_dec , colorbar=colorbar, slots=slots, thisSlot=slot, allSky = allSky)
+        mod_ra=mod_ra, mod_dec= mod_dec , colorbar=colorbar, slots=slots, thisSlot=slot, 
+        doHexes=doHexes, allSky = allSky)
 
     return alpha,beta
 
@@ -192,16 +195,16 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
         linewidth=1.0
         #ax = figure.add_subplot(1,1,1)
         # this is needed for search fig 1
-        ax=plotDecamHexen(ax, hexRa,hexDec,alpha, beta, color="r", lw=linewidth) 
+        ax=plotDecamHexen(ax, hexRa,hexDec,alpha, beta, color="r", lw=linewidth, allSky=allSky) 
         #ix =np.invert( insideDesFootprint.insideFootprint(hexRa, hexDec))
-        #ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="orange", lw=linewidth) 
+        #ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="orange", lw=linewidth, allSky=allSky) 
         if slots.size > 0 :
             # plot the already observed hexes as maroon
             ix = slots<thisSlot
-            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="maroon", lw=linewidth) 
+            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="maroon", lw=linewidth, allSky=allSky) 
             # plot the current slots hexes as yellow
             ix = slots==thisSlot
-            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="yellow", lw=linewidth) 
+            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="yellow", lw=linewidth, allSky=allSky) 
         
 
         # fig1 and fig2, lmc paper, 
@@ -261,8 +264,10 @@ def computeLimits (raHex, decHex, raMid = -1000, raBoxSize=5., decBoxSize=5, mod
         ybox = 0.01*(ymax-ymin)
     else :
         # autoscaling
-        x,y = mcbryde.mcbryde(raHex, decHex, alpha=alpha, beta=beta)
+        #x,y = mcbryde.mcbryde(raHex, decHex, alpha=alpha, beta=beta)
+        x,y = mcbryde.mcbryde(np.array([raMin,raMax]), np.array([1,1]), alpha=alpha, beta=beta)
         xmin = x.min(); xmax = x.max()
+        x,y = mcbryde.mcbryde(np.array([-1,1]), np.array([decMin,decMax]), alpha=alpha, beta=beta)
         ymin = y.min(); ymax = y.max()
         xbox = 0.1*(xmax-xmin)
         ybox = 0.1*(ymax-ymin)
@@ -332,7 +337,7 @@ def graticule (alpha, beta, xmin, xmax, ymin, ymax,
             decLine = np.append(decLine, j)
         xLine,yLine = mcbryde.mcbryde(raLine, decLine, alpha=alpha, beta=beta)
         ixg = (xLine > xmin) & (xLine < xmax) & (yLine > ymin) & (yLine < ymax)
-        plt.plot(xLine[ixg],yLine[ixg],c="k",alpha=0.5)
+        plt.plot(xLine[ixg],yLine[ixg],c="k",alpha=0.5, linewidth=0.5)
     doRedLine = True
     doRedLine = False
     if doRedLine :
@@ -342,19 +347,21 @@ def graticule (alpha, beta, xmin, xmax, ymin, ymax,
             raLine = np.append(raLine, i)
             decLine = np.append(decLine, j)
         xLine,yLine = mcbryde.mcbryde(raLine, decLine, alpha=alpha, beta=beta)
-        ixg = (xLine > xmin) & (xLine < xmax) & (yLine > ymin) & (yLine < ymax)
-        plt.plot(xLine[ixg],yLine[ixg],c="r",alpha=1.0)
+        ixg, = np.where((xLine > xmin) & (xLine < xmax) & (yLine > ymin) & (yLine < ymax))
+        if ixg.size > 0:
+            plt.plot(xLine[ixg],yLine[ixg],c="r",alpha=1.0, linewidth=0.5)
 
     for i in np.arange( decGratDec1, decGratDec2, decGratDelDec ) :
         raLine, decLine = np.array([]), np.array([])
         for j in np.arange( decGratRa1, decGratRa2, decGratDelRa ) :
             raLine = np.append(raLine, j)
             decLine = np.append(decLine, i)
-        xLine,yLine = mcbryde.mcbryde(raLine, decLine, alpha=alpha, beta=beta)
-        ixg = (xLine > xmin) & (xLine < xmax) & (yLine > ymin) & (yLine < ymax)
-        plt.plot(xLine[ixg],yLine[ixg],c="k",alpha=0.5)
+        xLine,yLine = mcbryde.mcbryde(raLine, decLine, alpha=alpha, beta=beta, isLine=True)
+        ixg, = np.where((xLine > xmin) & (xLine < xmax) & (yLine > ymin) & (yLine < ymax))
+        if ixg.size > 0:
+            plt.plot(xLine[ixg],yLine[ixg],c="k",alpha=0.5, linewidth=0.5)
 
-def plotDecamHexen(ax, ra,dec,alpha, beta=0, color="r", lw=1, plateCaree=False) :
+def plotDecamHexen(ax, ra,dec,alpha, beta=0, color="r", lw=1, plateCaree=False, allSky=False) :
     import decam2hp
     import matplotlib.patches 
     import matplotlib.path 
@@ -362,12 +369,34 @@ def plotDecamHexen(ax, ra,dec,alpha, beta=0, color="r", lw=1, plateCaree=False) 
     nHex = ra.size
     for i in range(0,nHex) :
         hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i])
-        hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha, beta=beta)
+        hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha, beta=beta, )
         if plateCaree:
             hexX,hexY = hexRa, hexDec
-        hex_path = matplotlib.path.Path(zip(hexX,hexY))
-        hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
-        ax.add_patch(hex_patch)
+        if not allSky :
+            hex_path = matplotlib.path.Path(zip(hexX,hexY))
+            hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+            ax.add_patch(hex_patch)
+        else :
+            # long section dealing with hexes that get split across the singularity
+            # and cause lines from one side of map to another
+            # split them into separate entities
+            # ugly, but it seems to work.
+            ix_pos = np.nonzero(hexRa>180)[0]
+            ix_neg = np.nonzero(hexRa<-180)[0]
+            ix, = np.where(np.nonzero((hexRa>=-180)&(hexRa<=180))[0])
+            if ix.size > 0 :
+                hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
+                hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                ax.add_patch(hex_patch)
+            if ix_pos.size > 0:
+                hex_path = matplotlib.path.Path(zip(hexX[ix_pos],hexY[ix_pos]))
+                hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                ax.add_patch(hex_patch)
+            if ix_neg.size > 0:
+                hex_path = matplotlib.path.Path(zip(hexX[ix_neg],hexY[ix_neg]))
+                hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                ax.add_patch(hex_patch)
+            
         #x,y=mcbryde.mcbryde(tra[i],tdec[i], alpha=alpha, beta=beta)
         #plt.text(x,y,"{}".format(i), ha="center", va="center", color="w")
     return ax
@@ -390,9 +419,9 @@ def plotLigoContours(x,y, vals, color="w", alpha = 1.0, lw=0.66, ls="solid", lab
     xi=np.linspace(xmin, xmax, 500)
     yi=np.linspace(ymin, ymax, 500)
     xi,yi=np.meshgrid(xi,yi)
-# JTA
-    #zi = griddata(coord,vals,(xi,yi),method="cubic")
-    zi = griddata(coord,vals,(xi,yi),method="linear")
+
+    zi = griddata(coord,vals,(xi,yi),method="cubic")
+    #zi = griddata(coord,vals,(xi,yi),method="linear")
 
     #print "linestyle = ",ls
     ct= plt.contour(xi,yi,zi,con_levels,linewidths=lw, linestyles=ls,

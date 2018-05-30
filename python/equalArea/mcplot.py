@@ -23,7 +23,7 @@ license="""
 """
 
 # tru cmap = gray_r
-def plot(x, y, vals, gridsize=160, save=False, file="", vmin="", vmax="", cmap="jet") :
+def plot(x, y, vals, gridsize=160, save=False, file="", vmin="", vmax="", cmap="jet", sum=False) :
     if vmin > vals.max() : vmin = ""
     if vmax < vals.min() : vmax = ""
     if vmin == "" and vmax == "":
@@ -33,7 +33,11 @@ def plot(x, y, vals, gridsize=160, save=False, file="", vmin="", vmax="", cmap="
     elif vmin == "" :
         plt.hexbin(x,y,vals,gridsize=gridsize, vmax=vmax, cmap=cmap);  
     else :
-        plt.hexbin(x,y,vals,gridsize=gridsize, vmin=vmin, vmax=vmax, cmap=cmap);  
+        if sum:
+            print "\t sum!"
+            plt.hexbin(x,y,vals,gridsize=gridsize, vmin=vmin, vmax=vmax, cmap=cmap, reduce_C_function=np.sum);  
+        else :
+            plt.hexbin(x,y,vals,gridsize=gridsize, vmin=vmin, vmax=vmax, cmap=cmap);  
     plt.axes().set_aspect('equal'); 
     plt.colorbar(shrink=0.5,pad=0.03); 
     plt.axes().set_frame_on(False); 

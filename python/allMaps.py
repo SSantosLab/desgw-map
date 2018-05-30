@@ -283,6 +283,17 @@ def mainInjector (trigger_id, skymap, trigger_type,\
         this_tiling = hexID_to_do, reject_hexes = hexID_to_reject, 
         resolution=resolution, trigger_type=trigger_type,
         halfNight = halfNight, firstHalf= firstHalf)
+
+#    print skymap, trigger_id, outputDir, outputDir, "distance=",distance, \
+#        "exposure_list=",exposure_length, "filter_list=",filter_list, \
+#        "overhead=",overhead, "maxHexesPerSlot=",maxHexesPerSlot, \
+#        "start_days_since_burst = ",recycler_days_since_burst,  \
+#        "skipHexelate=",False, "skipAll =", skipAll, \
+#        "this_tiling =", hexID_to_do, "reject_hexes =", hexID_to_reject,  \
+#        "resolution=",resolution, "trigger_type=",trigger_type, \
+#        "halfNight =", halfNight, "firstHalf=", firstHalf
+#
+#    print probs,times,slotDuration,hoursPerNight  
                 
     # figure out how to divide the night
     n_slots, first_slot = getHexObservations.contemplateTheDivisionsOfTime(
@@ -356,7 +367,7 @@ def mainInjector (trigger_id, skymap, trigger_type,\
             # make observation plots
             print "We're going to do {} slots with best slot {}".format(n_slots, best_slot)
             n_plots = getHexObservations.makeObservingPlots(
-                n_slots, trigger_id, best_slot, outputDir, outputDir)
+                n_slots, trigger_id, best_slot, outputDir, outputDir, allSky = True)
             string = "$(ls -v {}-observingPlot*)  {}_animate.gif".format(trigger_id, trigger_id)
             os.system("convert  -delay 40 -loop 0  " + string)
         else :
@@ -530,16 +541,6 @@ def maximumProbabilityPerDay (totalProbs,times) :
     maxprobs = np.array(maxprobs)
     return maxtimes, maxprobs
 
-#===================================================================
-#
-
-# ==================================
-# plotting 
-# ==================================
-
-def histProbs () :
-    import os
-    os.chdir("/data/des30.a/data/annis/des-gw/ligo/sims-2015-out")
     sim,mjd,distance,p0,p1,p2,p3,p4,p5,p6,p7,p8,p9 = np.genfromtxt("all-maxtimes-2015.txt", unpack=True);
     ix = p0 > .01; p=p0[ix]; n=p0.size-p.size; ix=p0>.33; n2=p0[ix].size; plt.clf();a=plt.hist(p,bins=100,color="k"); plt.text(0.4,23,"day 0: n with p < 0.01: {:3d}      n with p > 0.33: {:3d}".format(n,n2))
     ix = p1 > .01; p=p1[ix]; n=p1.size-p.size;ix=p1>.33; n2=p1[ix].size; a=plt.hist(p,bins=100,color="r",histtype="step"); plt.text(0.4,21,"day 1: n with p < 0.01: {:3d}      n with p > 0.33: {:3d}".format(n,n2),color="r")

@@ -91,7 +91,7 @@ class observed(object):
         dust_file         = "plank-ebv-HFI_CompMap_ThermaDustModel.fits"
         ra,dec,ebv        = dustModel.loadDust(dust_dir, dust_file)
         if degradeRes :
-            ra,dec,ebv    = hp2np.map2np (ebv, resolution=self.nside)
+            ra,dec,ebv    = hp2np.map2np (ebv, resolution=self.nside, fluxConservation=False)
         self.dust_ra      = ra
         self.dust_dec     = dec
         self.ebv          = ebv
@@ -166,7 +166,9 @@ class observed(object):
             SN[ix] = 1.0e-12
             m = m_zp + 2.5*np.log10( SN ) + 0.5*(sky - skyFid)
             # arbitarily limit limiting mag to that of moon
-            ix = np.nonzero(m < 0 )
+            ix = np.nonzero(m < 0)
+            m[ix] =  0
+            ix, = np.where(telescope == 0)
             m[ix] = -11.0
 
             SNglobal = dust*atmo*(1./seeing)*np.sqrt(exposure/30.)
@@ -175,7 +177,7 @@ class observed(object):
             mglobal = m_zp + 2.5*np.log10( SNglobal ) + 0.5*(sky - skyFid)
             # arbitarily limit limiting mag to that of moon
             ix = np.nonzero(mglobal < 0 )
-            mglobal[ix] = -11.0
+            mglobal[ix] = 0
 
 
         # project into equal area map
