@@ -5,7 +5,8 @@
 #
 
 #export DESGW_DIR="/data/des30.a/data/annis/test/"
-export DESGW_DIR="/home/s1/annis/daedalean/desgw-map"
+unset PYTHONPATH
+export DESGW_DIR="/data/des60.a/data/alenon/desgw-map"
 export DESGW_DATA_DIR="$DESGW_DIR/data/"
-PYTHONPATH="$DESGW_DIR/python/:$PYTHONPATH"
+export PYTHONPATH="$DESGW_DIR/python/:$PYTHONPATH"
 
