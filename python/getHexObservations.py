@@ -146,6 +146,10 @@ def prepare(skymap, trigger_id, data_dir, mapDir,
     # GW170225 hack JTA
     #ix = (dec >= 2)
     #ligo[ix] = 0.0
+    # GW170814 hack JTA
+    ix = (ra > -10) & ( ra < 60) & (dec < -20)
+    ix = np.invert(ix)
+    ligo[ix] = 0.0
 
     obs = mags.observed(ra,dec,ligo, start_mjd, verbose=False)
     obs.limitMag("i",exposure=exposure_length)
