@@ -1,6 +1,5 @@
 import healpy as hp
 import numpy as np
-import pyfits
 
 license="""
    Copyright (C) 2014 James Annis
