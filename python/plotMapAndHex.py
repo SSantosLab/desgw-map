@@ -31,7 +31,7 @@ def plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax) :
 # exp,raHex,decHex=np.genfromtxt("ra-dec.txt",unpack=True,comments="#")
 # reload(plotMapAndHex);plotMapAndHex.mapAndHex(figure, "G211117",0,"/data/des30.a/data/annis/des-gw/Christmas16-event/maps/", 8, raHex, decHex, "" )
 #
-def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec, 
+def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec, camera,
         title="", colorbar=True, slots=np.zeros(0), doHexes=True, allSky=False) :
     import healpy as hp
     import hp2np
@@ -92,17 +92,16 @@ def mapAndHex(figure, simNumber, slot, data_dir, nslots, hexRa, hexDec,
     else :
         #raise Exception("why are you doing this?")
         origLigoMap = ligoMap
-
-    alpha, beta = coreMapAndHex(figure, ra, dec, raMap, decMap, map, 
-        low_limit, high_limit, ligoMap, origLigoMap, doLigoMap=True, doOrigLigoMap=doOrigLigoMap,
-        resolution=resolution, image=image, scale=scale, badData=badData, badDataVal=badDataVal,
-        redRa = redRa, title=title, raMid=raMid, raBoxSize=raBoxSize, decBoxSize = decBoxSize, 
+    alpha, beta = coreMapAndHex(figure, ra, dec, raMap, decMap, camera, map, \
+        low_limit, high_limit, ligoMap, origLigoMap, doLigoMap=True, doOrigLigoMap=doOrigLigoMap, \
+        resolution=resolution, image=image, scale=scale, badData=badData, badDataVal=badDataVal, \
+        redRa = redRa, title=title, raMid=raMid, raBoxSize=raBoxSize, decBoxSize = decBoxSize, \
         mod_ra=mod_ra, mod_dec= mod_dec , colorbar=colorbar, slots=slots, thisSlot=slot, 
         doHexes=doHexes, allSky = allSky)
 
     return alpha,beta
 
-def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map, 
+def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, camera, map, 
         low_limit, high_limit, ligoMap, origLigoMap, doLigoMap=True, doOrigLigoMap=False, 
         resolution=512, image=False, scale=1., badData=False, badDataVal=-11.0,
         redRa = 90., title="", raMid=-1000, raBoxSize=5., decBoxSize=5., mod_ra = 0, mod_dec=0.,
@@ -195,16 +194,16 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, map,
         linewidth=1.0
         #ax = figure.add_subplot(1,1,1)
         # this is needed for search fig 1
-        ax=plotDecamHexen(ax, hexRa,hexDec,alpha, beta, color="r", lw=linewidth, allSky=allSky) 
+        ax=plotDecamHexen(ax, hexRa, hexDec, alpha, camera, beta, color="r", lw=linewidth, allSky=allSky) 
         #ix =np.invert( insideDesFootprint.insideFootprint(hexRa, hexDec))
         #ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="orange", lw=linewidth, allSky=allSky) 
         if slots.size > 0 :
             # plot the already observed hexes as maroon
             ix = slots<thisSlot
-            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="maroon", lw=linewidth, allSky=allSky) 
+            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, camera, beta, color="maroon", lw=linewidth, allSky=allSky) 
             # plot the current slots hexes as yellow
             ix = slots==thisSlot
-            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, beta, color="yellow", lw=linewidth, allSky=allSky) 
+            ax=plotDecamHexen(ax, hexRa[ix],hexDec[ix],alpha, camera, beta, color="yellow", lw=linewidth, allSky=allSky) 
         
 
         # fig1 and fig2, lmc paper, 
@@ -361,14 +360,14 @@ def graticule (alpha, beta, xmin, xmax, ymin, ymax,
         if ixg.size > 0:
             plt.plot(xLine[ixg],yLine[ixg],c="k",alpha=0.5, linewidth=0.5)
 
-def plotDecamHexen(ax, ra,dec,alpha, beta=0, color="r", lw=1, plateCaree=False, allSky=False) :
+def plotDecamHexen(ax, ra,dec,alpha, camera, beta=0, color="r", lw=1, plateCaree=False, allSky=False) :
     import decam2hp
     import matplotlib.patches 
     import matplotlib.path 
     from equalArea import mcbryde
     nHex = ra.size
     for i in range(0,nHex) :
-        hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i])
+        hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i], camera)
         hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha, beta=beta, )
         if plateCaree:
             hexX,hexY = hexRa, hexDec
@@ -433,7 +432,8 @@ def plotLigoContours(x,y, vals, color="w", alpha = 1.0, lw=0.66, ls="solid", lab
         inline= False
         fontsize =10
         fontsize =14
-        plt.clabel(ct, levels, inline=inline, fontsize=fontsize)
+        #plt.clabel(ct, levels, inline=inline, fontsize=fontsize)
+        #Hack
 
 def confidenceLevels(map) :
     map = np.array(map, copy=True)

@@ -130,6 +130,7 @@ def manyDaysOfTotalProbability (
     print "total all-sky summed probability of detection (list1) and daysSinceBurst (list2)"
     print totalProbs,"\n",times,"\n",isDark.astype(int)
     print "dark slots=",darkCount.size
+    
 #    print "===== times with total prob > 10**-2"
 #    ix = totalProbs > 10**-2; 
 #    if np.nonzero(ix)[0].size == 0 :
@@ -205,14 +206,13 @@ def probabilityMaps(obs, mjdOfBurst, daysSinceBurst, \
 def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
         models, times, probabilities, data_dir, 
         onlyHexesAlreadyDone="", reject_hexes="",
-        performHexalatationCalculation=True, trigger_type="NS") :
+        performHexalatationCalculation=True, trigger_type="NS", camera = 'decam') :
     import decam2hp
     import hexalate
     import os
     # one reads the tiling 9 hex centers as that is our default position
     gw_data_dir          = os.environ["DESGW_DATA_DIR"]
-    hexFile = gw_data_dir + "all-sky-hexCenters-tiling9.txt"
-
+    hexFile = gw_data_dir + "all-sky-hexCenters-"+camera+".txt"
     keep_flag = performHexalatationCalculation
 
     counter = -1
@@ -220,6 +220,9 @@ def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
         counter += 1
         performHexalatationCalculation = keep_flag
         if prob <= 0 : 
+            performHexalatationCalculation = False
+# terrible hack
+        if prob <= 0.18 : 
             performHexalatationCalculation = False
         #print "probabilityMapSaver: counter, time= ", counter, time
         if time < 0.06: time = 0.06 ;# if less than 1.5 hours, set to 1.5 hours
@@ -300,7 +303,7 @@ def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
                     raHexen[do_these], decHexen[do_these], idHexen[do_these]
 
             raHexen, decHexen, idHexen, hexVals, rank = \
-                hexalate.cutAndHexalateOnRaDec ( obs, sm, raHexen, decHexen, idHexen, tree)
+                hexalate.cutAndHexalateOnRaDec ( obs, sm, raHexen, decHexen, idHexen, tree, camera)
 
             # where rank is to be understood as the indicies of the
             # ranked hexes in order; i.e., they have nothing to do with
