@@ -165,6 +165,7 @@ def coreMapAndHex(figure, hexRa, hexDec, raMap, decMap, camera, map,
 
     # fig 1
     ax = figure.add_subplot(1,1,1)
+    #Plot Dec Footprint in the observing plots
     plotDesFootprint(alpha, beta, xmin, xmax, ymin, ymax, ax)
 
     if colorbar and not allSky:
@@ -361,43 +362,78 @@ def graticule (alpha, beta, xmin, xmax, ymin, ymax,
             plt.plot(xLine[ixg],yLine[ixg],c="k",alpha=0.5, linewidth=0.5)
 
 def plotDecamHexen(ax, ra,dec,alpha, camera, beta=0, color="r", lw=1, plateCaree=False, allSky=False) :
-    import decam2hp
-    import matplotlib.patches 
-    import matplotlib.path 
-    from equalArea import mcbryde
-    nHex = ra.size
-    for i in range(0,nHex) :
-        hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i], camera)
-        hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha, beta=beta, )
-        if plateCaree:
-            hexX,hexY = hexRa, hexDec
-        if not allSky :
-            hex_path = matplotlib.path.Path(zip(hexX,hexY))
-            hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
-            ax.add_patch(hex_patch)
-        else :
-            # long section dealing with hexes that get split across the singularity
-            # and cause lines from one side of map to another
-            # split them into separate entities
-            # ugly, but it seems to work.
+    if camera == 'decam':
+        import decam2hp
+        import matplotlib.patches 
+        import matplotlib.path 
+        from equalArea import mcbryde
+        import matplotlib.pyplot as plt
+        nHex = ra.size
+        for i in range(0,nHex) :
+            hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i], camera)
+            hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha, beta=beta, )
+            if plateCaree:
+                hexX,hexY = hexRa, hexDec
+            if not allSky :
+                hex_path = matplotlib.path.Path(zip(hexX,hexY))
+                hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                ax.add_patch(hex_patch)
+            else :
+                # long section dealing with hexes that get split across the singularity
+                # and cause lines from one side of map to another
+                # split them into separate entities
+                # ugly, but it seems to work.
+                ix_pos = np.nonzero(hexRa>180)[0]
+                ix_neg = np.nonzero(hexRa<-180)[0]
+                ix, = np.where(np.nonzero((hexRa>=-180)&(hexRa<=180))[0])
+                if ix.size > 0 :
+                    hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
+                    hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                    ax.add_patch(hex_patch)
+                if ix_pos.size > 0:
+                    hex_path = matplotlib.path.Path(zip(hexX[ix_pos],hexY[ix_pos]))
+                    hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                    ax.add_patch(hex_patch)
+                if ix_neg.size > 0:
+                    hex_path = matplotlib.path.Path(zip(hexX[ix_neg],hexY[ix_neg]))
+                    hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                    ax.add_patch(hex_patch)
+                
+            #x,y=mcbryde.mcbryde(tra[i],tdec[i], alpha=alpha, beta=beta)
+            #plt.text(x,y,"{}".format(i), ha="center", va="center", color="w")
+    if camera == 'hsc':
+        import decam2hp
+        import matplotlib.patches
+        import matplotlib.path
+        from equalArea import mcbryde
+        import matplotlib.pyplot as plt
+        nHex = ra.size
+        radius = 1.5 / 2
+        for i in range(0,nHex) :
+            hexRa,hexDec = decam2hp.cameraOutline(ra[i], dec[i], camera)
+            hexX,hexY = mcbryde.mcbryde(hexRa,hexDec, alpha=alpha, beta=beta, )
             ix_pos = np.nonzero(hexRa>180)[0]
             ix_neg = np.nonzero(hexRa<-180)[0]
             ix, = np.where(np.nonzero((hexRa>=-180)&(hexRa<=180))[0])
             if ix.size > 0 :
+                print("ix.size")
                 hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
-                hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                hex_patch = matplotlib.patches.PathPatch(hex_path, facecolor='none', edgecolor=color, lw=lw, fill=False)
                 ax.add_patch(hex_patch)
+
             if ix_pos.size > 0:
-                hex_path = matplotlib.path.Path(zip(hexX[ix_pos],hexY[ix_pos]))
-                hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
-                ax.add_patch(hex_patch)
-            if ix_neg.size > 0:
-                hex_path = matplotlib.path.Path(zip(hexX[ix_neg],hexY[ix_neg]))
-                hex_patch = matplotlib.patches.PathPatch(hex_path, edgecolor=color, lw=lw, fill=False)
+                print("ix_pos.size")
+                hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
+                hex_patch = matplotlib.patches.PathPatch(hex_path, facecolor='none', edgecolor=color, lw=lw, fill=False)
                 ax.add_patch(hex_patch)
             
-        #x,y=mcbryde.mcbryde(tra[i],tdec[i], alpha=alpha, beta=beta)
-        #plt.text(x,y,"{}".format(i), ha="center", va="center", color="w")
+            if ix_neg.size > 0:
+                print("ix_neg.size")
+                hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
+                hex_patch = matplotlib.patches.PathPatch(hex_path, facecolor='none', edgecolor=color, lw=lw, fill=False)
+                ax.add_patch(hex_patch)
+
+
     return ax
 
 def plotLigoContours(x,y, vals, color="w", alpha = 1.0, lw=0.66, ls="solid", labels=False ) :

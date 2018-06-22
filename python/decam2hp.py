@@ -13,16 +13,6 @@ import matplotlib.path
 
 # keeps count of times a hex, any hex, overlies a map pixel
 #   camera outline for the hexes given
-def hexesOnMapTested(ra,dec, raHexen, decHexen, camera) :
-    print "    checking {} hexes : ".format(raHexen.size),
-    count = np.zeros(ra.size)
-    for i in range(0,raHexen.size) :
-        ix = radecInHexTested( raHexen[i], decHexen[i], ra, dec, camera)
-        count[ix] += 1
-    print " "
-    return count
-# keeps count of times a hex, any hex, overlies a map pixel
-#   camera outline for the hexes given
 def hexesOnMap(ra,dec, raHexen, decHexen, camera) :
     print "    checking {} hexes : ".format(raHexen.size),
     count = np.zeros(ra.size)
@@ -32,27 +22,6 @@ def hexesOnMap(ra,dec, raHexen, decHexen, camera) :
     print " "
     return count
 
-# if one wants to know the sum of the ligo probability in
-# a set of observed hexes, hexalateMap is the routine to use.
-#
-# return the sum of the map vals inside the hexMap hexes
-#
-def hexalateMapTested(ra,dec, vals, raHexen, decHexen, camera, verbose=1, useCircle=False, radius=1.0) :
-    if verbose : print "\t hexalateMap \t nhex = {},".format(raHexen.size),
-    if verbose: print " npix = {}".format(ra.size)
-    hexVal = np.zeros(raHexen.size)
-    for i in range(0,raHexen.size) :
-        if useCircle :
-            ix = radecInCircle( raHexen[i], decHexen[i], ra, dec, radius=radius)
-        else :
-            ix = radecInHexTested( raHexen[i], decHexen[i], ra, dec, camera)
-        try  :
-            if not ix.size: continue
-            hexVal[i] = vals[ix].sum()
-        except Exception: 
-            print "why are there exceptions in hexalateMap?"
-            hexVal[i] = 0
-    return hexVal
 
 # I think doing this using a tree requires a projection we will
 # use the Sanson-Flamsteed projection, aka sinusoidal projection (x=ra*cos(dec), y=dec)
@@ -103,41 +72,6 @@ def radecInHex ( raCenter, decCenter, ra,dec,tree, camera,mapCenter= 0.) :
     return near_ix
 
 
-# return an index that is true/exists if ra,dec is inside
-# the camera outline for the hex 
-def radecInHexTested ( raCenter, decCenter, ra, dec, camera) :
-    if camera == 'decam':
-        camera_radius = 1.1
-    elif camera == 'hsc':
-        camera_radius = 0.75
-    else:
-        raise Exception('No such camera')
-    radius = camera_radius + 0.1
-    # cut away hopless areas in ra, dec
-    cosDec = np.cos(decCenter*2*np.pi/360.)
-    near_ix = (abs(ra-raCenter)*cosDec <= 1.1) & (dec-decCenter <= 1.1)
-    ## just doing the dec sped it up by x2
-    #near_ix = (dec-decCenter < 1.5)
-
-    # if there is nothing near, no reason to check further
-    if np.all(~near_ix) :
-        return near_ix
-
-    # find the answer
-    if camera == 'decam':
-        hex = hexPath(raCenter, decCenter, camera)
-        inside_ix = radecInHexPath( hex, ra[near_ix], dec[near_ix])
-    elif camera == 'hsc':
-        inside_ix = radecInCircle(raCenter, decCenter, ra[near_ix], dec[near_ix], radius=camera_radius)
-
-    # the issue here is that near_ix is of size ~1,000,000
-    # although only ~3000 are True, so inside_ix is of size ~3,000
-    # and about ~200 are True. One wants to adjust near_ix using
-    # the truth values of inside_ix.
-    near_ix[near_ix] = inside_ix
-    # simple, but not obvious
-
-    return near_ix
 
 #
 # Use a circle of area pi sq-degrees as a reasonable

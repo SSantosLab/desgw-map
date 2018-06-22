@@ -318,7 +318,6 @@ def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
                     raHexen[j],decHexen[j],idHexen[j],hexVals[j],rank[j],(np.asfarray(rank*0.)+(mjd+time))[j]))
             f.close()
             #np.savetxt(name,data.T,fmt="%.6f, %.5f, %s, %.4e, %d, %.4f")
-
     
 
 # Get the saved maps for each day and hour.

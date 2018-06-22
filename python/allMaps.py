@@ -376,7 +376,7 @@ def mainInjector (trigger_id, skymap, trigger_type,\
 
     # Lets find out how well we did in covering Ligo probability
     sum_ligo_prob = \
-        getHexObservations.how_well_did_we_do(skymap, trigger_id, outputDir, camera)
+        getHexObservations.how_well_did_we_do(skymap, trigger_id, outputDir, camera, resolution)
     return best_slot, n_slots, first_slot, econ_prob, econ_area, need_area, quality
 
 

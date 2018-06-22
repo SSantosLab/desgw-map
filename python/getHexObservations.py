@@ -271,12 +271,13 @@ def now(n_slots, mapDirectory="jack/", simNumber=13681,
     # shall we measure the total ligo probability covered?
     return maxProb_slot
 
-def how_well_did_we_do(skymap, simNumber, data_dir, camera) :
+def how_well_did_we_do(skymap, simNumber, data_dir, camera, resolution) :
     ra,dec,ligo = hp2np.hp2np(skymap)
     name = os.path.join(data_dir, str(simNumber) + "-ra-dec-id-prob-mjd-slot.txt")
     raH, decH = np.genfromtxt(name, unpack=True, usecols=(0,1))
-    #sum = decam2hp.hexalateMapTested(ra,dec,ligo,raH,decH); 
-    sum = decam2hp.hexalateMapTested(ra,dec,ligo,raH,decH,camera) 
+    treedata = decam2hp.buildtree(ra, dec, resolution) 
+    tree = treedata[2] 
+    sum = decam2hp.hexalateMap(ra,dec,ligo,tree, raH,decH,camera) 
     print "\nTotal Ligo probability covered by hexes observed: :",sum.sum()
     return sum.sum()
 
@@ -597,6 +598,7 @@ def equalAreaPlot(figure,slot,simNumber,data_dir,mapDir, title="") :
     ra, dec = x, y
 
     # des footprint
+    # plots the DES footprint on the maps
     desra, desdec = insideDesFootprint.getFootprintRaDec()
     desx, desy = mcbryde.mcbryde(desra, desdec)
 
