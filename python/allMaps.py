@@ -186,7 +186,7 @@ def mainInjector (trigger_id, skymap, trigger_type,\
         hexID_to_do=[], hexID_to_reject=[], 
         hours_used_by_NS=0, hours_used_by_BH=0,
         halfNight = False, firstHalf= True,
-        quick=False, debug=False, camera='decam') :
+        quick=False, debug=True, camera='decam') :
 
     import os
     import yaml
@@ -197,8 +197,14 @@ def mainInjector (trigger_id, skymap, trigger_type,\
     with open("maininjector.yaml","r") as f:
         config = yaml.safe_load(f); 
     
+    # debug
+    debug = config["debug"]    
+
     # camera
     camera   = config["camera"]
+
+    #resolution
+    resolution = config["resolution"]
 
     # season parameters
     start_of_season   = config["start_of_season"]
@@ -257,6 +263,10 @@ def mainInjector (trigger_id, skymap, trigger_type,\
     
     if not os.path.exists(outputDir):
         os.makedirs(outputDir)
+    
+    if camera == "hsc":
+        overhead = 20.
+        area_per_hex = 1.5
 
     # make the maps
     if quick :
@@ -265,17 +275,17 @@ def mainInjector (trigger_id, skymap, trigger_type,\
         skipAll = False
     #resolution = 256 ;# default, resolution element on order of ccd area size
     #resolution = 128 ;# roughly 4 ccds
-    resolution = 64 ;# very fast, debuging, roughly 1/4 of the camera size
-    if debug :
-        return getHexObservations.prepare(
-        skymap, trigger_id, outputDir, outputDir, distance=distance,
-        exposure_list=exposure_length, filter_list=filter_list,
-        overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
-        start_days_since_burst = recycler_days_since_burst, 
-        skipHexelate=False, skipAll = skipAll,
-        this_tiling = hexID_to_do, reject_hexes = hexID_to_reject, 
-        resolution=resolution, trigger_type=trigger_type, 
-        halfNight = halfNight, firstHalf= firstHalf, debug=debug,camera=camera)
+    #resolution = 64 ;# very fast, debuging, roughly 1/4 of the camera size
+    #if debug :
+       # return getHexObservations.prepare(
+       # skymap, trigger_id, outputDir, outputDir, distance=distance,
+       # exposure_list=exposure_length, filter_list=filter_list,
+       # overhead=overhead, maxHexesPerSlot=maxHexesPerSlot,
+       # start_days_since_burst = recycler_days_since_burst, 
+       # skipHexelate=False, skipAll = skipAll,
+       # this_tiling = hexID_to_do, reject_hexes = hexID_to_reject, 
+       # resolution=resolution, trigger_type=trigger_type, 
+       # halfNight = halfNight, firstHalf= firstHalf, debug=debug,camera=camera)
     probs,times,slotDuration,hoursPerNight = getHexObservations.prepare(
         skymap, trigger_id, outputDir, outputDir, distance=distance,
         exposure_list=exposure_length, filter_list=filter_list,
@@ -284,7 +294,7 @@ def mainInjector (trigger_id, skymap, trigger_type,\
         skipHexelate=False, skipAll = skipAll,
         this_tiling = hexID_to_do, reject_hexes = hexID_to_reject,
         resolution=resolution, trigger_type=trigger_type,
-        halfNight = halfNight, firstHalf = firstHalf, camera=camera)
+        halfNight = halfNight, firstHalf = firstHalf,debug=debug, camera=camera)
 
 #    print skymap, trigger_id, outputDir, outputDir, "distance=",distance, \
 #        "exposure_list=",exposure_length, "filter_list=",filter_list, \
@@ -368,7 +378,7 @@ def mainInjector (trigger_id, skymap, trigger_type,\
         if n_slots > 0 :
             # make observation plots
             print "We're going to do {} slots with best slot {}".format(n_slots, best_slot)
-            n_plots = getHexObservations.makeObservingPlots(n_slots, trigger_id, best_slot, outputDir, outputDir, camera, allSky = True)
+            n_plots = getHexObservations.makeObservingPlots(n_slots, trigger_id, best_slot, outputDir, outputDir, camera, allSky = False)
             string = "$(ls -v {}-observingPlot*)  {}_animate.gif".format(trigger_id, trigger_id)
             os.system("convert  -delay 40 -loop 0  " + string)
         else :

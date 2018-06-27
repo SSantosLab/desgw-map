@@ -65,7 +65,7 @@ def prepare(skymap, trigger_id, data_dir, mapDir, camera,
         onlyHexesAlreadyDone="", 
         saveHexalationMap=True, doOnlyMaxProbability=False, 
         resolution=256, trigger_type="NS", 
-        halfNight = False, firstHalf= True, debug=False) :
+        halfNight = False, firstHalf= True, debug= False) :
     import mapsAtTimeT
     import mags
     import modelRead
@@ -82,17 +82,17 @@ def prepare(skymap, trigger_id, data_dir, mapDir, camera,
     print "calculation starting at  {:.1f} days since burst\n".format(
          start_days_since_burst)
     start_mjd = burst_mjd + start_days_since_burst
- 
-    if not debug: 
-        print "cleaning up"
-        files = glob.glob(mapDir+"/*png"); 
-        for f in files: os.remove(f)
-        files = glob.glob(mapDir+"/*json"); 
-        for f in files: os.remove(f)
-        files = glob.glob(mapDir+"/*hp"); 
-        for f in files: os.remove(f)
-        files = glob.glob(mapDir+"/*txt"); 
-        for f in files: os.remove(f)
+    #if not debug: 
+    # hack
+    print "cleaning up"
+    files = glob.glob(mapDir+"/*png"); 
+    for f in files: os.remove(f)
+    files = glob.glob(mapDir+"/*json"); 
+    for f in files: os.remove(f)
+    files = glob.glob(mapDir+"/*hp"); 
+    for f in files: os.remove(f)
+    files = glob.glob(mapDir+"/*txt"); 
+    for f in files: os.remove(f)
         
 
     exposure_list = np.array(exposure_list)
@@ -165,9 +165,9 @@ def prepare(skymap, trigger_id, data_dir, mapDir, camera,
     if skipHexelate:
         print "=============>>>> prepare: using cached maps"
         return probs, times, slotDuration
-    if debug :
-        return  obs, trigger_id, burst_mjd, ligo, ligo_dist, ligo_dist_sig, \
-            models, times, probs, mapDir
+    #if debug :
+        #return  obs, trigger_id, burst_mjd, ligo, ligo_dist, ligo_dist_sig, \
+        #    models, times, probs, mapDir
     if doOnlyMaxProbability :
         if len(probs) == 0 : return [0,],[0,],[0,],[0,]
         ix = np.argmax(probs)
@@ -176,12 +176,11 @@ def prepare(skymap, trigger_id, data_dir, mapDir, camera,
     #print "JTA debugging =============== "
     #probs = np.array(probs[1:4])
     #times = np.array(times[1:4])
-
     mapsAtTimeT.probabilityMapSaver (obs, trigger_id, burst_mjd, \
         ligo, ligo_dist, ligo_dist_sig, models, times, probs, mapDir, \
         onlyHexesAlreadyDone = this_tiling, reject_hexes = reject_hexes,
         performHexalatationCalculation=saveHexalationMap,
-        trigger_type=trigger_type, camera = camera)
+        trigger_type=trigger_type, debug = debug, camera = camera)
     return probs, times, slotDuration, hoursPerNight
 
 # ========== do simple calculations on how to divide the night

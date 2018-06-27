@@ -416,19 +416,16 @@ def plotDecamHexen(ax, ra,dec,alpha, camera, beta=0, color="r", lw=1, plateCaree
             ix_neg = np.nonzero(hexRa<-180)[0]
             ix, = np.where(np.nonzero((hexRa>=-180)&(hexRa<=180))[0])
             if ix.size > 0 :
-                print("ix.size")
                 hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
                 hex_patch = matplotlib.patches.PathPatch(hex_path, facecolor='none', edgecolor=color, lw=lw, fill=False)
                 ax.add_patch(hex_patch)
 
             if ix_pos.size > 0:
-                print("ix_pos.size")
                 hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
                 hex_patch = matplotlib.patches.PathPatch(hex_path, facecolor='none', edgecolor=color, lw=lw, fill=False)
                 ax.add_patch(hex_patch)
             
             if ix_neg.size > 0:
-                print("ix_neg.size")
                 hex_path = matplotlib.path.Path(zip(hexX[ix],hexY[ix]))
                 hex_patch = matplotlib.patches.PathPatch(hex_path, facecolor='none', edgecolor=color, lw=lw, fill=False)
                 ax.add_patch(hex_patch)

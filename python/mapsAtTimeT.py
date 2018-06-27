@@ -204,9 +204,9 @@ def probabilityMaps(obs, mjdOfBurst, daysSinceBurst, \
 # all sky hexes
 # 
 def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
-        models, times, probabilities, data_dir, 
+        models, times, probabilities, data_dir, debug, camera,
         onlyHexesAlreadyDone="", reject_hexes="",
-        performHexalatationCalculation=True, trigger_type="NS", camera = 'decam') :
+        performHexalatationCalculation=True, trigger_type="NS") :
     import decam2hp
     import hexalate
     import os
@@ -214,7 +214,9 @@ def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
     gw_data_dir          = os.environ["DESGW_DATA_DIR"]
     hexFile = gw_data_dir + "all-sky-hexCenters-"+camera+".txt"
     keep_flag = performHexalatationCalculation
-
+    
+    prob_slots = np.percentile(probabilities, 95)
+    print("95th percentile",prob_slots)
     counter = -1
     for time,prob  in zip(times, probabilities) :
         counter += 1
@@ -222,8 +224,9 @@ def probabilityMapSaver (obs, sim, mjd, ligo, distance, distance_sig,
         if prob <= 0 : 
             performHexalatationCalculation = False
 # terrible hack
-        if prob <= 0.18 : 
-            performHexalatationCalculation = False
+        if debug:
+            if prob <= prob_slots : 
+                performHexalatationCalculation = False
         #print "probabilityMapSaver: counter, time= ", counter, time
         if time < 0.06: time = 0.06 ;# if less than 1.5 hours, set to 1.5 hours
         print "================== map save =====>>>>>>>>===== ",
